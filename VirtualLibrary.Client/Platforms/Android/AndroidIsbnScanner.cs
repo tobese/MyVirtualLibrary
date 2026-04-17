@@ -1,12 +1,14 @@
 // Android-only IIsbnScanner. Compiled into the net10.0-android head.
 //
-// Status: this file is a *scaffold* for integrating Plugin.Scanner.Uno (0.0.1).
-// The package's transitive dependencies require Uno.WinUI 6.5.64, which is
-// newer than the Uno.WinUI pulled in by Uno.Sdk 6.5.31 (pinned in global.json).
-// Until Uno.Sdk ships a matching stable (or Plugin.Scanner.Uno relaxes its
-// pins), this implementation falls through to manual entry — identical to
-// the desktop default — but the recipe to switch it on is inlined below in
-// a single #if block so the change is a one-file, one-PackageReference swap.
+// Plugin.Scanner.Uno 0.0.1 requires Uno.WinUI >= 6.5.64. Uno.Sdk 6.5.31
+// (pinned in global.json) ships Uno.WinUI 6.5.153, so the constraint is
+// satisfied. The USE_PLUGIN_SCANNER_UNO flag is now defined unconditionally
+// for the Android TFM (see VirtualLibrary.Client.csproj) and the live
+// camera path below is the active one.
+//
+// IBarcodeScanner is resolved via ScannerBootstrap (ServiceCollection +
+// Plugin.Scanner.Uno.Android.CurrentActivity) and injected by ScannerFactory
+// in ScanPage.xaml.cs.
 //
 // Tracking: GitHub issue #2 ("Phase 2: Android scanner …").
 
@@ -22,9 +24,9 @@ namespace VirtualLibrary.Client.Platforms.Android;
 public sealed class AndroidIsbnScanner : IIsbnScanner
 {
 #if USE_PLUGIN_SCANNER_UNO
-    private readonly Plugin.Scanner.Core.Barcode.IBarcodeScanner _barcodes;
+    private readonly Plugin.Scanner.Core.Scanners.IBarcodeScanner _barcodes;
 
-    public AndroidIsbnScanner(Plugin.Scanner.Core.Barcode.IBarcodeScanner barcodes)
+    public AndroidIsbnScanner(Plugin.Scanner.Core.Scanners.IBarcodeScanner barcodes)
     {
         _barcodes = barcodes;
     }
@@ -34,16 +36,16 @@ public sealed class AndroidIsbnScanner : IIsbnScanner
     public async Task<string?> ScanIsbnAsync(CancellationToken ct = default)
     {
         // EAN-13 covers all ISBN-13 barcodes; EAN-8 is included for safety.
-        var options = new Plugin.Scanner.Core.Barcode.BarcodeScanOptions
+        var options = new Plugin.Scanner.Options.BarcodeScanOptions
         {
-            Formats = Plugin.Scanner.Core.Barcode.BarcodeFormat.Ean13
-                    | Plugin.Scanner.Core.Barcode.BarcodeFormat.Ean8,
+            Formats = Plugin.Scanner.Core.Models.Enums.BarcodeFormat.Ean13
+                    | Plugin.Scanner.Core.Models.Enums.BarcodeFormat.Ean8,
         };
 
         try
         {
             var barcode = await _barcodes.ScanAsync(options, ct).ConfigureAwait(true);
-            return barcode?.RawValue;
+            return barcode?.Text;
         }
         catch (Plugin.Scanner.Core.Exceptions.ScanException)
         {

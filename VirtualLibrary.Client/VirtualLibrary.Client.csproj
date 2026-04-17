@@ -32,8 +32,26 @@
     </UnoFeatures>
   </PropertyGroup>
 
+  <!-- Enable the live barcode scanner on Android. -->
+  <PropertyGroup Condition="$(TargetFramework.Contains('android'))">
+    <DefineConstants>$(DefineConstants);USE_PLUGIN_SCANNER_UNO</DefineConstants>
+    <!-- Lift the AndroidX packages that Plugin.Scanner.Android 0.0.1 requires above
+         what Uno.Sdk 6.5.31 / the Android workload defaults to, preventing NU1605.
+         Must be set in the PropertyGroup (processed before SDK .targets) so the
+         Android workload picks up the overridden values for its implicit refs. -->
+    <AndroidXActivityVersion>1.12.2.1</AndroidXActivityVersion>
+    <AndroidXAppCompatVersion>1.7.1.2</AndroidXAppCompatVersion>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\VirtualLibrary.Shared\VirtualLibrary.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$(TargetFramework.Contains('android'))">
+    <PackageReference Include="Plugin.Scanner.Uno" />
+    <!-- Workaround for known .NET Android / Compose Annotation Jvm conflict:
+         https://github.com/dotnet/android-libraries/issues/1341 -->
+    <PackageReference Include="Xamarin.AndroidX.Compose.Runtime.Annotation.Jvm" ExcludeAssets="all" />
   </ItemGroup>
 
 </Project>

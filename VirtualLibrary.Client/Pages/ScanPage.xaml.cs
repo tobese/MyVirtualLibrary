@@ -70,7 +70,15 @@ public sealed partial class ScanPage : Page
     private static class ScannerFactory
     {
         public static IIsbnScanner Create() =>
-#if __ANDROID__
+#if USE_PLUGIN_SCANNER_UNO
+            // Live camera path: ScannerBootstrap lazily wires Plugin.Scanner.Uno
+            // (ServiceCollection + Uno-aware CurrentActivity) and returns the
+            // cached IBarcodeScanner for the app lifetime.
+            new Platforms.Android.AndroidIsbnScanner(
+                Platforms.Android.ScannerBootstrap.Resolve());
+#elif __ANDROID__
+            // Fallback stub — reached only if USE_PLUGIN_SCANNER_UNO is not set
+            // (i.e. during development without the package).
             new Platforms.Android.AndroidIsbnScanner();
 #else
             new ManualIsbnScanner();
