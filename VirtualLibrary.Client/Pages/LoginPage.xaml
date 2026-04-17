@@ -1,0 +1,43 @@
+<Page x:Class="VirtualLibrary.Client.Pages.LoginPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid VerticalAlignment="Center" HorizontalAlignment="Center" Padding="40">
+        <StackPanel Spacing="20" MaxWidth="400">
+            <TextBlock Text="Virtual Library"
+                       FontSize="32" FontWeight="Bold"
+                       HorizontalAlignment="Center" />
+
+            <TextBlock Text="Sign in to continue"
+                       FontSize="16" Opacity="0.7"
+                       HorizontalAlignment="Center" />
+
+            <Button x:Name="GoogleSignInButton"
+                    Content="Sign in with Google"
+                    Click="OnGoogleSignIn"
+                    HorizontalAlignment="Stretch"
+                    Padding="16,12" />
+
+            <Button x:Name="AppleSignInButton"
+                    Content="Sign in with Apple"
+                    Click="OnAppleSignIn"
+                    HorizontalAlignment="Stretch"
+                    Padding="16,12" />
+
+            <TextBlock Text="— or —" HorizontalAlignment="Center" Opacity="0.5" Margin="0,8,0,0" />
+
+            <TextBox x:Name="EmailBox" PlaceholderText="admin@virtuallibrary.local" />
+            <PasswordBox x:Name="PasswordBox" PlaceholderText="Password" />
+            <Button Content="Sign in with password"
+                    Click="OnPasswordSignIn"
+                    HorizontalAlignment="Stretch" />
+
+            <TextBlock x:Name="StatusText"
+                       Text=""
+                       Foreground="Red"
+                       HorizontalAlignment="Center"
+                       TextWrapping="Wrap" />
+        </StackPanel>
+    </Grid>
+</Page>

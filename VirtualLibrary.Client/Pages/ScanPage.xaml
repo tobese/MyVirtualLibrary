@@ -1,0 +1,62 @@
+<Page x:Class="VirtualLibrary.Client.Pages.ScanPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid Padding="16" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button Content="← Back" Click="OnBack" />
+            <TextBlock Grid.Column="1" Text="Scan a book" FontSize="24" FontWeight="SemiBold"
+                       VerticalAlignment="Center" />
+        </Grid>
+
+        <StackPanel Grid.Row="1" Spacing="16" MaxWidth="480"
+                    HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,24,0,0">
+
+            <TextBlock TextWrapping="Wrap" Opacity="0.75"
+                       Text="Scan an ISBN barcode with your device camera, or type the ISBN below." />
+
+            <Button x:Name="CameraButton" Content="Open camera"
+                    Click="OnCamera" HorizontalAlignment="Stretch"
+                    Padding="16,12" />
+
+            <TextBlock Text="— or —" HorizontalAlignment="Center" Opacity="0.5" />
+
+            <TextBox x:Name="IsbnBox" PlaceholderText="ISBN-10 or ISBN-13"
+                     InputScope="Number" />
+
+            <ComboBox x:Name="StatusCombo" HorizontalAlignment="Stretch" SelectedIndex="1">
+                <ComboBoxItem Content="WantToRead" />
+                <ComboBoxItem Content="Owned" />
+                <ComboBoxItem Content="Read" />
+            </ComboBox>
+
+            <Button Content="Look up &amp; add" Click="OnSubmit"
+                    HorizontalAlignment="Stretch"
+                    Style="{ThemeResource AccentButtonStyle}" />
+
+            <TextBlock x:Name="StatusText" TextWrapping="Wrap"
+                       HorizontalAlignment="Center" Opacity="0.75" />
+
+            <!-- Preview of the looked-up edition -->
+            <Border x:Name="PreviewPanel" Visibility="Collapsed"
+                    Padding="12" CornerRadius="6"
+                    Background="#10808080">
+                <StackPanel Spacing="4">
+                    <TextBlock x:Name="PreviewTitle" FontWeight="SemiBold" />
+                    <TextBlock x:Name="PreviewAuthors" Opacity="0.75" />
+                    <TextBlock x:Name="PreviewPublisher" Opacity="0.6" FontSize="12" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </Grid>
+</Page>

@@ -1,0 +1,39 @@
+<Project Sdk="Uno.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net10.0-browserwasm;net10.0-android</TargetFrameworks>
+
+    <OutputType>Exe</OutputType>
+    <UnoSingleProject>true</UnoSingleProject>
+    <RootNamespace>VirtualLibrary.Client</RootNamespace>
+
+    <!-- Display name -->
+    <ApplicationTitle>Virtual Library</ApplicationTitle>
+    <!-- App Identifier -->
+    <ApplicationId>com.virtuallibrary.client</ApplicationId>
+    <!-- Versions -->
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+    <!-- Package Publisher -->
+    <ApplicationPublisher>Virtual Library</ApplicationPublisher>
+    <!-- Package Description -->
+    <Description>Virtual Library — personal book tracker powered by OpenLibrary.</Description>
+
+    <!--
+      UnoFeatures are used to quickly add and manage features enabled for your app.
+      https://aka.platform.uno/singleproject-features
+    -->
+    <UnoFeatures>
+      SkiaRenderer;
+      AuthenticationOidc;
+      Toolkit;
+      Navigation;
+      Configuration;
+      Http;
+    </UnoFeatures>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VirtualLibrary.Shared\VirtualLibrary.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,10 @@
+{
+  "background_color": "#ffffff",
+  "description": "VirtualLibrary.Client",
+  "display": "standalone",
+  "name": "VirtualLibrary.Client",
+  "short_name": "VirtualLibrary.Client",
+  "start_url": "/index.html",
+  "theme_color": "#ffffff",
+  "scope": "/"
+}

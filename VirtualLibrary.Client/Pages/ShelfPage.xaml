@@ -1,0 +1,62 @@
+<Page x:Class="VirtualLibrary.Client.Pages.ShelfPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:shared="using:VirtualLibrary.Shared"
+      Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid Padding="16" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Button Content="← Back" Click="OnBack" />
+            <TextBlock Grid.Column="1" Text="Virtual Shelf" FontSize="24" FontWeight="SemiBold"
+                       VerticalAlignment="Center" />
+            <Button Grid.Column="2" Content="Refresh" Click="OnRefresh" />
+        </Grid>
+
+        <TextBlock Grid.Row="1" TextWrapping="Wrap" Opacity="0.7"
+                   Text="Prototype view: books you own are arranged as spines along the shelf.
+                         Full layout with custom shelves &amp; drag/drop is on the roadmap." />
+
+        <ScrollViewer Grid.Row="2" HorizontalScrollMode="Auto" VerticalScrollMode="Disabled"
+                      HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Hidden">
+            <Border BorderThickness="0,0,0,6" BorderBrush="#60A0522D" Padding="8,0">
+                <ItemsControl x:Name="SpinesList">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Bottom" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="shared:UserBookDto">
+                            <Border Width="28" Height="180"
+                                    Background="#80556B2F" CornerRadius="2"
+                                    ToolTipService.ToolTip="{x:Bind Edition.Title}">
+                                <TextBlock Text="{x:Bind Edition.Title}"
+                                           VerticalAlignment="Center" HorizontalAlignment="Center"
+                                           Foreground="White" FontSize="10"
+                                           TextTrimming="CharacterEllipsis">
+                                    <TextBlock.RenderTransform>
+                                        <RotateTransform Angle="-90" />
+                                    </TextBlock.RenderTransform>
+                                </TextBlock>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+        </ScrollViewer>
+
+        <TextBlock Grid.Row="3" x:Name="StatusText" Opacity="0.6" HorizontalAlignment="Center" />
+    </Grid>
+</Page>
