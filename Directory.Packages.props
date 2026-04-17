@@ -13,5 +13,12 @@
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.5" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.5" />
     <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.7.0" />
+    <PackageVersion Include="Plugin.Scanner.Uno" Version="0.0.1" />
+    <!-- Workaround for known .NET Android issue: https://github.com/dotnet/android-libraries/issues/1341 -->
+    <PackageVersion Include="Xamarin.AndroidX.Compose.Runtime.Annotation.Jvm" Version="1.10.0.1" />
+    <!-- Pin AndroidX packages to the minimum versions required by Plugin.Scanner.Android 0.0.1.
+         Uno.Sdk 6.5.31 implicitly resolves older versions; these overrides prevent NU1605. -->
+    <PackageVersion Include="Xamarin.AndroidX.Activity" Version="1.12.2.1" />
+    <PackageVersion Include="Xamarin.AndroidX.AppCompat" Version="1.7.1.2" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This manifest is merged into the Android head by the Uno single-project
+     SDK. Only declarations unique to VirtualLibrary.Client go here; Uno fills
+     in the boilerplate (application tag, launcher activity, etc.).
+
+     Camera permissions are added ahead of the Plugin.Scanner.Uno integration
+     tracked in issue #2, so that enabling the scanner later is a code-only
+     change. The camera feature is marked android:required="false" because
+     manual ISBN entry works on devices without a rear camera. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.FLASHLIGHT" />
+
+    <uses-feature android:name="android.hardware.camera"
+                  android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus"
+                  android:required="false" />
+</manifest>

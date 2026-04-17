@@ -114,6 +114,10 @@ All endpoints return JSON. All `/api/*` routes require `Authorization: Bearer <J
 - `PATCH /api/books/{id}`           — `{ "status"?, "rating"?, "notes"? }`
 - `DELETE /api/books/{id}`
 Enum reference: `BookStatus 0=WantToRead, 1=Owned, 2=Read`; `UserRole 0=User, 1=Admin, 2=SuperAdmin`; `UserStatus 0=PendingApproval, 1=Active, 2=Rejected, 3=Suspended`.
+## Android barcode scanner
+The `ScanPage` resolves `VirtualLibrary.Client.Services.IIsbnScanner` via a tiny platform-conditional factory. On non-Android heads it falls back to `ManualIsbnScanner` (camera button disabled); on the Android head it uses `VirtualLibrary.Client.Platforms.Android.AndroidIsbnScanner` backed by `Plugin.Scanner.Uno 0.0.1` via ML Kit.
+`USE_PLUGIN_SCANNER_UNO` is defined unconditionally for the Android TFM in `VirtualLibrary.Client.csproj`, so the live camera path is active. `ScannerBootstrap` wires a minimal `ServiceCollection` with `Plugin.Scanner.Uno.Android.CurrentActivity` (the Uno-aware activity provider) + `AddScanner()`, then caches the resolved `IBarcodeScanner` for the app lifetime.
+Camera and flashlight permissions are declared in `VirtualLibrary.Client/Platforms/Android/AndroidManifest.xml`; no further manifest edits are needed.
 ## Troubleshooting
 - **`VirtualLibrary.Shared` fails with `IsExternalInit is not defined`** — the polyfill lives in `VirtualLibrary.Shared/Polyfills.cs`. Don't delete it; it's required because `netstandard2.1` predates C# 9 init-only setters.
 - **API boots then dies with `nodename nor servname provided, or not known`** — the default connection string uses `Host=db` (Docker Compose name). For a native run, override `ConnectionStrings__DefaultConnection` as shown above.
@@ -128,7 +132,7 @@ See `docs/er-diagram.md` for the data model. Plan progress:
 - [x] OpenLibrary client with DB + memory cache and rate limiting
 - [x] Docker Compose + multi-stage API Dockerfile
 - [x] Uno client pages: Login, PendingApproval, Scan, Library, BookDetail, Shelf, UserManagement
-- [ ] Android ISBN scanner (hook present in `ScanPage.xaml.cs`, needs `Plugin.Scanner.Uno` wired)
+- [x] Android ISBN scanner — `IIsbnScanner` abstraction + `AndroidIsbnScanner` (live `Plugin.Scanner.Uno` path) + `AndroidManifest.xml` permissions + `ScannerBootstrap` DI wiring
 - [ ] Virtual shelf: drag/drop placements + physical-dimension fallback
 - [ ] Production OAuth wiring for Google / Apple
 - [ ] Source-gen JSON context for trim-safe WASM

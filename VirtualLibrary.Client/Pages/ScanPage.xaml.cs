@@ -8,16 +8,17 @@ namespace VirtualLibrary.Client.Pages;
 public sealed partial class ScanPage : Page
 {
     private readonly ApiClient _api = ApiClient.Instance;
+    private readonly IIsbnScanner _scanner = ScannerFactory.Create();
 
     public ScanPage()
     {
         this.InitializeComponent();
 
-#if __WASM__
-        // No native camera scanning on WASM in v1; fall back to manual entry.
-        CameraButton.Content = "Camera scanning (coming soon)";
-        CameraButton.IsEnabled = false;
-#endif
+        if (!_scanner.IsSupported)
+        {
+            CameraButton.Content = "Camera scanning (coming soon)";
+            CameraButton.IsEnabled = false;
+        }
     }
 
     private void OnBack(object sender, RoutedEventArgs e)
@@ -28,26 +29,59 @@ public sealed partial class ScanPage : Page
 
     private async void OnCamera(object sender, RoutedEventArgs e)
     {
-#if __ANDROID__
+        if (!_scanner.IsSupported)
+        {
+            StatusText.Text = "Camera scanning isn't available on this platform yet.";
+            return;
+        }
+
         try
         {
+            CameraButton.IsEnabled = false;
             StatusText.Text = "Starting scanner…";
-            // Placeholder for future Plugin.Scanner.Uno integration:
-            //
-            //   var options = new BarcodeScannerOptions(BarcodeFormat.Ean13 | BarcodeFormat.Ean8);
-            //   var result  = await _barcodeScanner.ScanAsync(options);
-            //   IsbnBox.Text = result?.DisplayValue ?? "";
-            //   OnSubmit(this, new RoutedEventArgs());
-            StatusText.Text = "Scanner plugin not wired yet — enter the ISBN manually for now.";
-            await Task.CompletedTask;
+            var raw = await _scanner.ScanIsbnAsync();
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                StatusText.Text = "Scan cancelled.";
+                return;
+            }
+
+            // Push into the textbox and run the normal lookup/add flow so the
+            // scanned ISBN is validated exactly like a typed one.
+            IsbnBox.Text = raw;
+            OnSubmit(this, new RoutedEventArgs());
         }
         catch (Exception ex)
         {
             StatusText.Text = $"Scan failed: {ex.Message}";
         }
+        finally
+        {
+            CameraButton.IsEnabled = _scanner.IsSupported;
+        }
+    }
+
+    /// <summary>
+    /// Resolves the right <see cref="IIsbnScanner"/> for the current platform
+    /// without taking a dependency on an IoC container. Keeps the page code
+    /// platform-agnostic while still producing an Android-specific scanner
+    /// when compiled into the Android head.
+    /// </summary>
+    private static class ScannerFactory
+    {
+        public static IIsbnScanner Create() =>
+#if USE_PLUGIN_SCANNER_UNO
+            // Live camera path: ScannerBootstrap lazily wires Plugin.Scanner.Uno
+            // (ServiceCollection + Uno-aware CurrentActivity) and returns the
+            // cached IBarcodeScanner for the app lifetime.
+            new Platforms.Android.AndroidIsbnScanner(
+                Platforms.Android.ScannerBootstrap.Resolve());
+#elif __ANDROID__
+            // Fallback stub — reached only if USE_PLUGIN_SCANNER_UNO is not set
+            // (i.e. during development without the package).
+            new Platforms.Android.AndroidIsbnScanner();
 #else
-        StatusText.Text = "Camera scanning isn't available on this platform yet.";
-        await Task.CompletedTask;
+            new ManualIsbnScanner();
 #endif
     }
 
