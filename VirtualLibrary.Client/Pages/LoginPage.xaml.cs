@@ -47,13 +47,19 @@ public sealed partial class LoginPage : Page
             AppleSignInButton.IsEnabled = false;
             StatusText.Text = $"Signing in with {provider}...";
 
+            // Resolve the platform callback URI that the OS will redirect to
+            // after the user approves the sign-in in the browser / Custom Tab.
             var redirectUri = Windows.Security.Authentication.Web.WebAuthenticationBroker
                 .GetCurrentApplicationCallbackUri().OriginalString;
 
+            // Build the OIDC authorization URL for the selected provider.
+            // OAuthConfig holds the public client IDs — fill them in before
+            // enabling external sign-in (see Services/OAuthConfig.cs).
+            var nonce = Guid.NewGuid().ToString("N");
             var authorizeUrl = provider switch
             {
-                "Google" => $"https://accounts.google.com/o/oauth2/v2/auth?client_id=YOUR_GOOGLE_CLIENT_ID&redirect_uri={Uri.EscapeDataString(redirectUri)}&response_type=id_token&scope=openid%20email%20profile&nonce={Guid.NewGuid()}",
-                "Apple" => $"https://appleid.apple.com/auth/authorize?client_id=YOUR_APPLE_SERVICE_ID&redirect_uri={Uri.EscapeDataString(redirectUri)}&response_type=id_token&scope=name%20email&nonce={Guid.NewGuid()}",
+                "Google" => BuildGoogleUrl(redirectUri, nonce),
+                "Apple"  => BuildAppleUrl(redirectUri, nonce),
                 _ => throw new ArgumentException($"Unknown provider: {provider}")
             };
 
@@ -102,6 +108,56 @@ public sealed partial class LoginPage : Page
             GoogleSignInButton.IsEnabled = true;
             AppleSignInButton.IsEnabled = true;
         }
+    }
+
+    // ----------------------------------------------------------------
+    // OAuth URL builders
+    // ----------------------------------------------------------------
+
+    /// <summary>
+    /// Builds the Google OIDC implicit-flow authorization URL.
+    /// Throws <see cref="InvalidOperationException"/> with setup instructions
+    /// if the client ID has not been populated in <see cref="OAuthConfig"/>.
+    /// </summary>
+    private static string BuildGoogleUrl(string redirectUri, string nonce)
+    {
+        if (string.IsNullOrWhiteSpace(OAuthConfig.GoogleClientId))
+            throw new InvalidOperationException(
+                "OAuthConfig.GoogleClientId is empty. " +
+                "Follow the setup instructions in " +
+                "VirtualLibrary.Client/Services/OAuthConfig.cs " +
+                "to obtain a Google OAuth 2.0 client ID and paste it there.");
+
+        return $"https://accounts.google.com/o/oauth2/v2/auth" +
+               $"?client_id={Uri.EscapeDataString(OAuthConfig.GoogleClientId)}" +
+               $"&redirect_uri={Uri.EscapeDataString(redirectUri)}" +
+               $"&response_type=id_token" +
+               $"&scope=openid%20email%20profile" +
+               $"&nonce={nonce}";
+        // TODO(#5): upgrade to PKCE authorization code flow to avoid the
+        // deprecated implicit grant.
+    }
+
+    /// <summary>
+    /// Builds the Apple OIDC implicit-flow authorization URL.
+    /// Throws <see cref="InvalidOperationException"/> with setup instructions
+    /// if the client ID has not been populated in <see cref="OAuthConfig"/>.
+    /// </summary>
+    private static string BuildAppleUrl(string redirectUri, string nonce)
+    {
+        if (string.IsNullOrWhiteSpace(OAuthConfig.AppleClientId))
+            throw new InvalidOperationException(
+                "OAuthConfig.AppleClientId is empty. " +
+                "Follow the setup instructions in " +
+                "VirtualLibrary.Client/Services/OAuthConfig.cs " +
+                "to obtain an Apple Services ID and paste it there.");
+
+        return $"https://appleid.apple.com/auth/authorize" +
+               $"?client_id={Uri.EscapeDataString(OAuthConfig.AppleClientId)}" +
+               $"&redirect_uri={Uri.EscapeDataString(redirectUri)}" +
+               $"&response_type=id_token" +
+               $"&scope=name%20email" +
+               $"&nonce={nonce}";
     }
 
     private void NavigateByStatus(UserStatus status)

@@ -8,6 +8,7 @@
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
     <PackageVersion Include="Plugin.Scanner.Uno" Version="0.0.1" />
     <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.7.0" />
+    <PackageVersion Include="Google.Apis.Auth" Version="1.73.0" />
     <PackageVersion Include="Xamarin.AndroidX.Activity" Version="1.12.2.1" />
     <PackageVersion Include="Xamarin.AndroidX.AppCompat" Version="1.7.1.2" />
     <PackageVersion Include="Xamarin.AndroidX.Compose.Runtime.Annotation.Jvm" Version="1.10.0.1" />
