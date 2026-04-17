@@ -55,3 +55,31 @@ public record AddUserBookRequest(string Isbn, BookStatus Status = BookStatus.Own
 public record UpdateUserBookRequest(BookStatus? Status, int? Rating, string? Notes);
 
 public record IsbnLookupResponse(EditionDto Edition, WorkDto? Work);
+
+// ---- Virtual shelf ----
+
+/// <summary>
+/// A single placement slot on a shelf, ordered by <see cref="Slot"/>.
+/// </summary>
+public record ShelfPlacementDto(
+    Guid Id,
+    Guid UserBookId,
+    int Slot,
+    UserBookDto Book
+);
+
+/// <summary>
+/// A shelf with its full ordered placement list. Books owned by the user
+/// but not yet placed are appended at the end by the API.
+/// </summary>
+public record ShelfDto(
+    Guid Id,
+    string Name,
+    List<ShelfPlacementDto> Placements
+);
+
+/// <summary>
+/// Replaces all placements on a shelf. The order of
+/// <see cref="UserBookIds"/> defines the new slot sequence (0-based).
+/// </summary>
+public record SaveShelfPlacementsRequest(List<Guid> UserBookIds);

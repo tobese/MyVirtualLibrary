@@ -1,24 +1,15 @@
-<Project ToolsVersion="15.0">
-  <!--
-    To update the version of Uno, you should instead update the Sdk version in the global.json file.
-
-    See https://aka.platform.uno/using-uno-sdk for more information.
-    See https://aka.platform.uno/using-uno-sdk#implicit-packages for more information regarding the Implicit Packages.
-  -->
+<Project>
   <ItemGroup>
-    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.5" />
-    <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.5" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.5" />
-    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.5" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.5" />
-    <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.7.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.5" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
     <PackageVersion Include="Plugin.Scanner.Uno" Version="0.0.1" />
-    <!-- Workaround for known .NET Android issue: https://github.com/dotnet/android-libraries/issues/1341 -->
-    <PackageVersion Include="Xamarin.AndroidX.Compose.Runtime.Annotation.Jvm" Version="1.10.0.1" />
-    <!-- Pin AndroidX packages to the minimum versions required by Plugin.Scanner.Android 0.0.1.
-         Uno.Sdk 6.5.31 implicitly resolves older versions; these overrides prevent NU1605. -->
+    <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.7.0" />
     <PackageVersion Include="Xamarin.AndroidX.Activity" Version="1.12.2.1" />
     <PackageVersion Include="Xamarin.AndroidX.AppCompat" Version="1.7.1.2" />
+    <PackageVersion Include="Xamarin.AndroidX.Compose.Runtime.Annotation.Jvm" Version="1.10.0.1" />
   </ItemGroup>
 </Project>
