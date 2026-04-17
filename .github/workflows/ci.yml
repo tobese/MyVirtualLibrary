@@ -38,8 +38,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
-      - name: Restore .NET workloads (Uno, WASM)
-        run: dotnet workload restore VirtualLibrary.Client/VirtualLibrary.Client.csproj
+      - name: Install WASM workloads
+        # `wasm-tools` is required by Uno when it detects native WebAssembly assets;
+        # `dotnet workload restore` alone does not install it.
+        run: |
+          dotnet workload install wasm-tools
+          dotnet workload restore VirtualLibrary.Client/VirtualLibrary.Client.csproj
 
       # ---- Shared ----
       - name: Restore Shared
