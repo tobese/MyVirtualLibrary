@@ -1,0 +1,13 @@
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/.idea/
+.git/
+.gitignore
+.gitattributes
+VirtualLibrary.Client/
+docs/
+docker-compose.yml
+README.md
+*.md

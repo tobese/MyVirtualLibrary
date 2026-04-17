@@ -1,0 +1,18 @@
+@VirtualLibrary.Api_HostAddress = http://localhost:5179
+
+### Health
+GET {{VirtualLibrary.Api_HostAddress}}/health
+Accept: application/json
+
+### Admin login
+POST {{VirtualLibrary.Api_HostAddress}}/api/auth/login/password
+Content-Type: application/json
+
+{
+  "email": "admin@virtuallibrary.local",
+  "password": "Admin123!"
+}
+
+### Lookup an ISBN
+POST {{VirtualLibrary.Api_HostAddress}}/api/lookup/9780140328721
+Authorization: Bearer {{TOKEN}}

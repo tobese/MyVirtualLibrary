@@ -1,0 +1,33 @@
+<Page x:Class="VirtualLibrary.Client.Pages.PendingApprovalPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid VerticalAlignment="Center" HorizontalAlignment="Center" Padding="40">
+        <StackPanel Spacing="16" MaxWidth="480">
+            <TextBlock Text="Waiting for approval"
+                       FontSize="28" FontWeight="SemiBold"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center" />
+
+            <TextBlock TextWrapping="Wrap" TextAlignment="Center" Opacity="0.75"
+                       Text="Your account has been created and is pending administrator approval. This page will refresh automatically when your account is approved." />
+
+            <ProgressRing x:Name="ProgressRing" IsActive="True" Width="48" Height="48"
+                          HorizontalAlignment="Center" />
+
+            <TextBlock x:Name="StatusText"
+                       Text="Checking…"
+                       HorizontalAlignment="Center"
+                       Opacity="0.6" />
+
+            <Button Content="Check now"
+                    Click="OnCheckNow"
+                    HorizontalAlignment="Center" />
+
+            <Button Content="Sign out"
+                    Click="OnSignOut"
+                    HorizontalAlignment="Center" />
+        </StackPanel>
+    </Grid>
+</Page>
