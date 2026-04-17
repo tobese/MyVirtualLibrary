@@ -47,19 +47,17 @@ public sealed partial class LoginPage : Page
             AppleSignInButton.IsEnabled = false;
             StatusText.Text = $"Signing in with {provider}...";
 
-            // Resolve the platform callback URI that the OS will redirect to
-            // after the user approves the sign-in in the browser / Custom Tab.
             var redirectUri = Windows.Security.Authentication.Web.WebAuthenticationBroker
                 .GetCurrentApplicationCallbackUri().OriginalString;
 
-            // Build the OIDC authorization URL for the selected provider.
-            // OAuthConfig holds the public client IDs — fill them in before
-            // enabling external sign-in (see Services/OAuthConfig.cs).
-            var nonce = Guid.NewGuid().ToString("N");
+            // Generate PKCE pair (RFC 7636 S256).
+            var codeVerifier  = PkceHelper.GenerateCodeVerifier();
+            var codeChallenge = PkceHelper.GenerateCodeChallenge(codeVerifier);
+
             var authorizeUrl = provider switch
             {
-                "Google" => BuildGoogleUrl(redirectUri, nonce),
-                "Apple"  => BuildAppleUrl(redirectUri, nonce),
+                "Google" => BuildGoogleUrl(redirectUri, codeChallenge),
+                "Apple"  => BuildAppleUrl(redirectUri, codeChallenge),
                 _ => throw new ArgumentException($"Unknown provider: {provider}")
             };
 
@@ -68,7 +66,8 @@ public sealed partial class LoginPage : Page
                     Windows.Security.Authentication.Web.WebAuthenticationOptions.None,
                     new Uri(authorizeUrl));
 
-            if (result.ResponseStatus != Windows.Security.Authentication.Web.WebAuthenticationStatus.Success)
+            if (result.ResponseStatus !=
+                Windows.Security.Authentication.Web.WebAuthenticationStatus.Success)
             {
                 StatusText.Text = "Sign-in cancelled.";
                 return;
@@ -80,17 +79,24 @@ public sealed partial class LoginPage : Page
                 StatusText.Text = "No response data received.";
                 return;
             }
-            var fragment = new Uri(responseData).Fragment.TrimStart('#');
-            var queryParams = System.Web.HttpUtility.ParseQueryString(fragment);
-            var idToken = queryParams["id_token"];
 
-            if (string.IsNullOrEmpty(idToken))
+            // Authorization code flow: the code arrives in the query string, not the fragment.
+            var responseUri  = new Uri(responseData);
+            var queryString  = responseUri.Query.TrimStart('?');
+            var queryParams  = System.Web.HttpUtility.ParseQueryString(queryString);
+            var code         = queryParams["code"];
+
+            if (string.IsNullOrEmpty(code))
             {
-                StatusText.Text = "No identity token received.";
+                StatusText.Text = "No authorization code received.";
                 return;
             }
 
-            var authResponse = await _api.ExternalLoginAsync(provider, idToken);
+            // Hand the code + verifier to the API for server-side token exchange.
+            StatusText.Text = "Exchanging authorization code...";
+            var authResponse = await _api.ExchangeCodeAsync(
+                provider, code, codeVerifier, redirectUri);
+
             if (authResponse == null)
             {
                 StatusText.Text = "Login failed.";
@@ -115,11 +121,11 @@ public sealed partial class LoginPage : Page
     // ----------------------------------------------------------------
 
     /// <summary>
-    /// Builds the Google OIDC implicit-flow authorization URL.
+    /// Builds the Google PKCE authorization code URL (S256 challenge).
     /// Throws <see cref="InvalidOperationException"/> with setup instructions
     /// if the client ID has not been populated in <see cref="OAuthConfig"/>.
     /// </summary>
-    private static string BuildGoogleUrl(string redirectUri, string nonce)
+    private static string BuildGoogleUrl(string redirectUri, string codeChallenge)
     {
         if (string.IsNullOrWhiteSpace(OAuthConfig.GoogleClientId))
             throw new InvalidOperationException(
@@ -128,22 +134,22 @@ public sealed partial class LoginPage : Page
                 "VirtualLibrary.Client/Services/OAuthConfig.cs " +
                 "to obtain a Google OAuth 2.0 client ID and paste it there.");
 
+        // RFC 7636 PKCE — authorization code flow (replaces the deprecated implicit grant).
         return $"https://accounts.google.com/o/oauth2/v2/auth" +
                $"?client_id={Uri.EscapeDataString(OAuthConfig.GoogleClientId)}" +
                $"&redirect_uri={Uri.EscapeDataString(redirectUri)}" +
-               $"&response_type=id_token" +
+               $"&response_type=code" +
                $"&scope=openid%20email%20profile" +
-               $"&nonce={nonce}";
-        // TODO(#5): upgrade to PKCE authorization code flow to avoid the
-        // deprecated implicit grant.
+               $"&code_challenge={codeChallenge}" +
+               $"&code_challenge_method=S256";
     }
 
     /// <summary>
-    /// Builds the Apple OIDC implicit-flow authorization URL.
+    /// Builds the Apple PKCE authorization code URL (S256 challenge).
     /// Throws <see cref="InvalidOperationException"/> with setup instructions
     /// if the client ID has not been populated in <see cref="OAuthConfig"/>.
     /// </summary>
-    private static string BuildAppleUrl(string redirectUri, string nonce)
+    private static string BuildAppleUrl(string redirectUri, string codeChallenge)
     {
         if (string.IsNullOrWhiteSpace(OAuthConfig.AppleClientId))
             throw new InvalidOperationException(
@@ -152,12 +158,15 @@ public sealed partial class LoginPage : Page
                 "VirtualLibrary.Client/Services/OAuthConfig.cs " +
                 "to obtain an Apple Services ID and paste it there.");
 
+        // Apple supports PKCE for web flows (code_challenge_method=S256).
+        // Note: Apple's redirect_uri must be HTTPS in production.
         return $"https://appleid.apple.com/auth/authorize" +
                $"?client_id={Uri.EscapeDataString(OAuthConfig.AppleClientId)}" +
                $"&redirect_uri={Uri.EscapeDataString(redirectUri)}" +
-               $"&response_type=id_token" +
+               $"&response_type=code" +
                $"&scope=name%20email" +
-               $"&nonce={nonce}";
+               $"&code_challenge={codeChallenge}" +
+               $"&code_challenge_method=S256";
     }
 
     private void NavigateByStatus(UserStatus status)

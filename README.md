@@ -115,6 +115,7 @@ All endpoints return JSON. All `/api/*` routes require `Authorization: Bearer <J
 - `DELETE /api/books/{id}`
 - `GET  /api/shelves/default`         — load-or-create default shelf (unplaced owned books merged in)
 - `PUT  /api/shelves/{id}/placements` — `{ "userBookIds": ["<uuid>", …] }` replaces all placements in slot order
+- `POST /api/auth/exchange`           — `{ "provider", "code", "codeVerifier", "redirectUri" }` PKCE code exchange (preferred over `/login`)
 Enum reference: `BookStatus 0=WantToRead, 1=Owned, 2=Read`; `UserRole 0=User, 1=Admin, 2=SuperAdmin`; `UserStatus 0=PendingApproval, 1=Active, 2=Rejected, 3=Suspended`.
 ## OAuth setup
 External sign-in (Google / Apple) requires credentials from each provider's developer console **and** public client IDs baked into the client app. No secrets are committed to the repo.
@@ -155,9 +156,8 @@ public const string GoogleClientId = "123456789-xxxx.apps.googleusercontent.com"
 public const string AppleClientId  = "com.yourcompany.virtualibrary.web";
 ```
 These values appear in browser URLs and are safe to commit.
-### Remaining work (tracked in issue #5)
-- Upgrade to **PKCE authorization code flow** (currently implicit flow — deprecated by Google).
-- iOS native Sign In with Apple button via `AuthenticationServices.ASAuthorizationController`.
+### Remaining work
+- iOS native Sign In with Apple button via `AuthenticationServices.ASAuthorizationController` (requires adding `net10.0-ios` TFM).
 ## Android barcode scanner
 The `ScanPage` resolves `VirtualLibrary.Client.Services.IIsbnScanner` via a tiny platform-conditional factory. On non-Android heads it falls back to `ManualIsbnScanner` (camera button disabled); on the Android head it uses `VirtualLibrary.Client.Platforms.Android.AndroidIsbnScanner` backed by `Plugin.Scanner.Uno 0.0.1` via ML Kit.
 `USE_PLUGIN_SCANNER_UNO` is defined unconditionally for the Android TFM in `VirtualLibrary.Client.csproj`, so the live camera path is active. `ScannerBootstrap` wires a minimal `ServiceCollection` with `Plugin.Scanner.Uno.Android.CurrentActivity` (the Uno-aware activity provider) + `AddScanner()`, then caches the resolved `IBarcodeScanner` for the app lifetime.

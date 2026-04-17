@@ -38,6 +38,8 @@ namespace VirtualLibrary.Client.Services;
 // ── Shelf ────────────────────────────────────────────────────────────────────
 [JsonSerializable(typeof(ShelfDto))]
 [JsonSerializable(typeof(SaveShelfPlacementsRequest))]
+// ── PKCE ─────────────────────────────────────────────────────────────────────
+[JsonSerializable(typeof(TokenExchangeRequest))]
 internal sealed partial class AppJsonContext : JsonSerializerContext
 {
 }

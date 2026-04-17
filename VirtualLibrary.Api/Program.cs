@@ -63,6 +63,8 @@ builder.Services.AddAuthorization(options =>
 
 // External OAuth token validator (Google + Apple)
 builder.Services.AddSingleton<IExternalTokenValidatorFactory, ExternalTokenValidatorFactory>();
+// PKCE authorization code exchange (Google + Apple)
+builder.Services.AddScoped<ITokenExchangeService, TokenExchangeService>();
 
 // OpenLibrary client
 builder.Services.AddMemoryCache();
