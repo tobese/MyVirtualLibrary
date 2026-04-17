@@ -114,6 +114,14 @@ All endpoints return JSON. All `/api/*` routes require `Authorization: Bearer <J
 - `PATCH /api/books/{id}`           — `{ "status"?, "rating"?, "notes"? }`
 - `DELETE /api/books/{id}`
 Enum reference: `BookStatus 0=WantToRead, 1=Owned, 2=Read`; `UserRole 0=User, 1=Admin, 2=SuperAdmin`; `UserStatus 0=PendingApproval, 1=Active, 2=Rejected, 3=Suspended`.
+## Android barcode scanner
+The `ScanPage` resolves `VirtualLibrary.Client.Services.IIsbnScanner` via a tiny platform-conditional factory (`Services/IIsbnScanner.cs`). On non-Android heads it falls back to `ManualIsbnScanner` (no-op + camera button disabled); on the Android head it selects `VirtualLibrary.Client.Platforms.Android.AndroidIsbnScanner`.
+`AndroidIsbnScanner` currently returns "not supported" so the Scan page stays usable via keyboard entry. A fully-commented `Plugin.Scanner.Uno` integration is present inside an `#if USE_PLUGIN_SCANNER_UNO` block. To enable it:
+1. Wait for `Plugin.Scanner.Uno` (currently `0.0.1`) to relax its `Uno.WinUI 6.5.64` dependency — **or** bump `global.json`'s `Uno.Sdk` to a version that pulls `Uno.WinUI >= 6.5.64`.
+2. Add a PackageReference for `Plugin.Scanner.Uno` conditioned on android/ios target frameworks, with a matching `PackageVersion` in `Directory.Packages.props`.
+3. Define `USE_PLUGIN_SCANNER_UNO` in the Android build (e.g. `<DefineConstants>$(DefineConstants);USE_PLUGIN_SCANNER_UNO</DefineConstants>` inside a `<PropertyGroup Condition="$(TargetFramework.Contains('android'))">`).
+4. Wire an `IServiceProvider` (either the Uno.Extensions `.UseScanner()` builder or a plain `ServiceCollection().AddScanner()`) so the `IBarcodeScanner` dependency in `AndroidIsbnScanner` can be resolved.
+Camera and flashlight permissions are already declared in `VirtualLibrary.Client/Platforms/Android/AndroidManifest.xml`, so no manifest edits are required.
 ## Troubleshooting
 - **`VirtualLibrary.Shared` fails with `IsExternalInit is not defined`** — the polyfill lives in `VirtualLibrary.Shared/Polyfills.cs`. Don't delete it; it's required because `netstandard2.1` predates C# 9 init-only setters.
 - **API boots then dies with `nodename nor servname provided, or not known`** — the default connection string uses `Host=db` (Docker Compose name). For a native run, override `ConnectionStrings__DefaultConnection` as shown above.
@@ -128,7 +136,7 @@ See `docs/er-diagram.md` for the data model. Plan progress:
 - [x] OpenLibrary client with DB + memory cache and rate limiting
 - [x] Docker Compose + multi-stage API Dockerfile
 - [x] Uno client pages: Login, PendingApproval, Scan, Library, BookDetail, Shelf, UserManagement
-- [ ] Android ISBN scanner (hook present in `ScanPage.xaml.cs`, needs `Plugin.Scanner.Uno` wired)
+- [~] Android ISBN scanner — `IIsbnScanner` abstraction + `AndroidIsbnScanner` scaffold + `AndroidManifest.xml` permissions all in place; `Plugin.Scanner.Uno` wiring gated on a `USE_PLUGIN_SCANNER_UNO` flag and blocked on its `Uno.WinUI 6.5.64` pin not matching our `Uno.Sdk 6.5.31`
 - [ ] Virtual shelf: drag/drop placements + physical-dimension fallback
 - [ ] Production OAuth wiring for Google / Apple
 - [ ] Source-gen JSON context for trim-safe WASM
