@@ -61,6 +61,9 @@ builder.Services.AddAuthorization(options =>
               .RequireClaim("status", UserStatus.Active.ToString()));
 });
 
+// External OAuth token validator (Google + Apple)
+builder.Services.AddSingleton<IExternalTokenValidatorFactory, ExternalTokenValidatorFactory>();
+
 // OpenLibrary client
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<IOpenLibraryClient, OpenLibraryClient>();

@@ -77,7 +77,7 @@ In `Development`, the API seeds one account on startup (`Program.cs → SeedSupe
 - Email: `admin@virtuallibrary.local`
 - Password: `Admin123!`
 - Role: `SuperAdmin`, Status: `Active`
-Use these on the **Sign in with password** form. External Google/Apple sign-in requires real OAuth client IDs — see `appsettings.json` → `Auth:Google` / `Auth:Apple`.
+Use these on the **Sign in with password** form. External Google/Apple sign-in requires configuration — see the **OAuth setup** section below.
 ## Useful commands
 ```bash
 # Regenerate EF Core migration
@@ -116,6 +116,48 @@ All endpoints return JSON. All `/api/*` routes require `Authorization: Bearer <J
 - `GET  /api/shelves/default`         — load-or-create default shelf (unplaced owned books merged in)
 - `PUT  /api/shelves/{id}/placements` — `{ "userBookIds": ["<uuid>", …] }` replaces all placements in slot order
 Enum reference: `BookStatus 0=WantToRead, 1=Owned, 2=Read`; `UserRole 0=User, 1=Admin, 2=SuperAdmin`; `UserStatus 0=PendingApproval, 1=Active, 2=Rejected, 3=Suspended`.
+## OAuth setup
+External sign-in (Google / Apple) requires credentials from each provider's developer console **and** public client IDs baked into the client app. No secrets are committed to the repo.
+### Server-side secrets (API)
+The API validates tokens using each provider's published public keys. It reads the audience / client ID from configuration:
+```bash
+# Local dev — user secrets (never committed)
+cd VirtualLibrary.Api
+dotnet user-secrets set "Auth:Google:ClientId"     "<web-app-client-id>.apps.googleusercontent.com"
+dotnet user-secrets set "Auth:Google:ClientSecret" "<secret>"   # needed only for cookie-based flows
+dotnet user-secrets set "Auth:Apple:ClientId"      "com.yourcompany.virtualibrary.web"
+```
+For production, supply the same keys as environment variables:
+```
+Auth__Google__ClientId=...
+Auth__Apple__ClientId=...
+```
+### Google Cloud Console setup
+1. Create a project at <https://console.cloud.google.com>.
+2. Enable the **People API**.
+3. **Credentials → Create → OAuth 2.0 Client ID (type: Web application)**.
+   - Authorized JavaScript origins: `http://localhost:5000` (dev), `https://yourdomain.com` (prod).
+   - Authorized redirect URIs: same origins + `/signin-google` if using server-side redirect.
+4. Copy the Client ID (ends in `.apps.googleusercontent.com`) into `Auth:Google:ClientId` (server) and into `OAuthConfig.GoogleClientId` in `VirtualLibrary.Client/Services/OAuthConfig.cs` (WASM/Android).
+5. **Optional — Android native**: Create a second Client ID (type: Android) with your app's SHA-1 fingerprint and package name `com.virtuallibrary.client`. Google Play Services uses this internally; the OIDC audience remains the **web** client ID.
+### Apple Developer setup
+1. Sign in at <https://developer.apple.com>.
+2. **Certificates, IDs & Profiles → Identifiers → + → Services IDs**. Enable *Sign In with Apple*.
+3. Add your domain and redirect URIs (must be HTTPS in production).
+4. Create a **Sign In with Apple** key under **Keys**; download the `.p8` file.
+5. Set `Auth:Apple:ClientId` (your Services ID, e.g. `com.yourcompany.virtualibrary.web`) and `Auth:Apple:TeamId` / `Auth:Apple:KeyId` / `Auth:Apple:PrivateKey` via user secrets or environment variables.
+6. Copy the Services ID into `OAuthConfig.AppleClientId`.
+### Client-side IDs
+Paste the **public** client IDs (not secrets) into `VirtualLibrary.Client/Services/OAuthConfig.cs`:
+```csharp
+// __WASM__ block
+public const string GoogleClientId = "123456789-xxxx.apps.googleusercontent.com";
+public const string AppleClientId  = "com.yourcompany.virtualibrary.web";
+```
+These values appear in browser URLs and are safe to commit.
+### Remaining work (tracked in issue #5)
+- Upgrade to **PKCE authorization code flow** (currently implicit flow — deprecated by Google).
+- iOS native Sign In with Apple button via `AuthenticationServices.ASAuthorizationController`.
 ## Android barcode scanner
 The `ScanPage` resolves `VirtualLibrary.Client.Services.IIsbnScanner` via a tiny platform-conditional factory. On non-Android heads it falls back to `ManualIsbnScanner` (camera button disabled); on the Android head it uses `VirtualLibrary.Client.Platforms.Android.AndroidIsbnScanner` backed by `Plugin.Scanner.Uno 0.0.1` via ML Kit.
 `USE_PLUGIN_SCANNER_UNO` is defined unconditionally for the Android TFM in `VirtualLibrary.Client.csproj`, so the live camera path is active. `ScannerBootstrap` wires a minimal `ServiceCollection` with `Plugin.Scanner.Uno.Android.CurrentActivity` (the Uno-aware activity provider) + `AddScanner()`, then caches the resolved `IBarcodeScanner` for the app lifetime.
@@ -136,5 +178,5 @@ See `docs/er-diagram.md` for the data model. Plan progress:
 - [x] Uno client pages: Login, PendingApproval, Scan, Library, BookDetail, Shelf, UserManagement
 - [x] Android ISBN scanner — `IIsbnScanner` abstraction + `AndroidIsbnScanner` (live `Plugin.Scanner.Uno` path) + `AndroidManifest.xml` permissions + `ScannerBootstrap` DI wiring
 - [x] Virtual shelf: drag/drop reorder (`ListView` `CanReorderItems`) + physical-dimension spine widths + `ShelvesController` (load-or-create default shelf, batch-replace placements)
-- [ ] Production OAuth wiring for Google / Apple
+- [x] Production OAuth wiring — `ExternalTokenValidatorFactory` (Google via `GoogleJsonWebSignature`, Apple via OIDC discovery + JWKS), `OAuthConfig` for client IDs, configurable via user secrets / env vars; implicit flow wired end-to-end (PKCE upgrade tracked in issue #5)
 - [ ] Source-gen JSON context for trim-safe WASM

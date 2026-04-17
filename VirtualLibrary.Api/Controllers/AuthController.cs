@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using VirtualLibrary.Api.Mapping;
 using VirtualLibrary.Api.Models;
+using VirtualLibrary.Api.Services;
 using VirtualLibrary.Shared;
 
 namespace VirtualLibrary.Api.Controllers;
@@ -16,11 +17,16 @@ public class AuthController : ControllerBase
 {
     private readonly UserManager<AppUser> _userManager;
     private readonly IConfiguration _configuration;
+    private readonly IExternalTokenValidatorFactory _tokenValidator;
 
-    public AuthController(UserManager<AppUser> userManager, IConfiguration configuration)
+    public AuthController(
+        UserManager<AppUser> userManager,
+        IConfiguration configuration,
+        IExternalTokenValidatorFactory tokenValidator)
     {
-        _userManager = userManager;
-        _configuration = configuration;
+        _userManager    = userManager;
+        _configuration  = configuration;
+        _tokenValidator = tokenValidator;
     }
 
     /// <summary>
@@ -43,28 +49,22 @@ public class AuthController : ControllerBase
 
     /// <summary>
     /// Exchange an external identity token (Google/Apple) for a local JWT.
+    /// The token is fully validated (signature, expiry, audience) using the
+    /// provider's published public keys before any claims are trusted.
     /// Creates the user if they don't exist yet (PendingApproval).
     /// </summary>
     [HttpPost("login")]
     public async Task<IActionResult> ExternalLogin([FromBody] ExternalLoginRequest request)
     {
-        // In production, validate the IdToken with the provider's public keys.
-        // For now we extract claims from the JWT payload without full validation
-        // as a placeholder — replace with proper validation per provider.
-        var handler = new JwtSecurityTokenHandler();
-        JwtSecurityToken? jwt;
-        try
-        {
-            jwt = handler.ReadJwtToken(request.IdToken);
-        }
-        catch
-        {
-            return BadRequest(new { error = "Invalid identity token" });
-        }
+        var identity = await _tokenValidator.ValidateAsync(
+            request.Provider, request.IdToken);
 
-        var email = jwt.Claims.FirstOrDefault(c => c.Type == "email")?.Value;
-        var externalId = jwt.Claims.FirstOrDefault(c => c.Type == "sub")?.Value;
-        var name = jwt.Claims.FirstOrDefault(c => c.Type == "name")?.Value;
+        if (identity == null)
+            return Unauthorized(new { error = "Identity token validation failed" });
+
+        var email      = identity.Email;
+        var externalId = identity.ExternalId;
+        var name       = identity.DisplayName;
 
         if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(externalId))
             return BadRequest(new { error = "Token missing email or subject" });
