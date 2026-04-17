@@ -18,15 +18,18 @@ public class AuthController : ControllerBase
     private readonly UserManager<AppUser> _userManager;
     private readonly IConfiguration _configuration;
     private readonly IExternalTokenValidatorFactory _tokenValidator;
+    private readonly ITokenExchangeService _tokenExchange;
 
     public AuthController(
         UserManager<AppUser> userManager,
         IConfiguration configuration,
-        IExternalTokenValidatorFactory tokenValidator)
+        IExternalTokenValidatorFactory tokenValidator,
+        ITokenExchangeService tokenExchange)
     {
         _userManager    = userManager;
         _configuration  = configuration;
         _tokenValidator = tokenValidator;
+        _tokenExchange  = tokenExchange;
     }
 
     /// <summary>
@@ -54,41 +57,45 @@ public class AuthController : ControllerBase
     /// Creates the user if they don't exist yet (PendingApproval).
     /// </summary>
     [HttpPost("login")]
-    public async Task<IActionResult> ExternalLogin([FromBody] ExternalLoginRequest request)
+    public async Task<IActionResult> ExternalLogin(
+        [FromBody] ExternalLoginRequest request, CancellationToken ct)
     {
         var identity = await _tokenValidator.ValidateAsync(
-            request.Provider, request.IdToken);
+            request.Provider, request.IdToken, ct);
 
         if (identity == null)
             return Unauthorized(new { error = "Identity token validation failed" });
 
-        var email      = identity.Email;
-        var externalId = identity.ExternalId;
-        var name       = identity.DisplayName;
+        return await IssueTokenForIdentityAsync(request.Provider, identity, ct);
+    }
 
-        if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(externalId))
-            return BadRequest(new { error = "Token missing email or subject" });
+    /// <summary>
+    /// PKCE authorization code exchange: the client supplies the
+    /// authorization <c>code</c> and its <c>code_verifier</c>; the API
+    /// performs the server-side token exchange with the provider, then
+    /// validates the resulting ID token and issues a local JWT.
+    ///
+    /// <para>Prefer this endpoint over <c>POST /api/auth/login</c> for
+    /// new integrations — it avoids the deprecated implicit OIDC grant.</para>
+    /// </summary>
+    [HttpPost("exchange")]
+    public async Task<IActionResult> ExchangeCode(
+        [FromBody] TokenExchangeRequest request, CancellationToken ct)
+    {
+        var idToken = await _tokenExchange.ExchangeCodeForIdTokenAsync(
+            request.Provider, request.Code,
+            request.CodeVerifier, request.RedirectUri, ct);
 
-        var user = await _userManager.FindByEmailAsync(email);
-        if (user == null)
-        {
-            user = new AppUser
-            {
-                UserName = email,
-                Email = email,
-                DisplayName = name,
-                ExternalProvider = request.Provider,
-                ExternalId = externalId,
-                Status = UserStatus.PendingApproval,
-                Role = UserRole.User
-            };
-            var result = await _userManager.CreateAsync(user);
-            if (!result.Succeeded)
-                return BadRequest(new { error = result.Errors.Select(e => e.Description) });
-        }
+        if (idToken == null)
+            return Unauthorized(new { error = "Authorization code exchange failed" });
 
-        var token = GenerateJwt(user);
-        return Ok(new AuthResponse(token, user.ToResponse()));
+        var identity = await _tokenValidator.ValidateAsync(
+            request.Provider, idToken, ct);
+
+        if (identity == null)
+            return Unauthorized(new { error = "Identity token validation failed" });
+
+        return await IssueTokenForIdentityAsync(request.Provider, identity, ct);
     }
 
     /// <summary>
@@ -130,6 +137,42 @@ public class AuthController : ControllerBase
     /// </summary>
     [HttpGet("/health")]
     public IActionResult Health() => Ok(new { status = "healthy" });
+
+    // ----------------------------------------------------------------
+    // Helpers shared by ExternalLogin and ExchangeCode
+    // ----------------------------------------------------------------
+
+    private async Task<IActionResult> IssueTokenForIdentityAsync(
+        string provider, ExternalIdentity identity, CancellationToken ct)
+    {
+        var email      = identity.Email;
+        var externalId = identity.ExternalId;
+        var name       = identity.DisplayName;
+
+        if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(externalId))
+            return BadRequest(new { error = "Token missing email or subject" });
+
+        var user = await _userManager.FindByEmailAsync(email);
+        if (user == null)
+        {
+            user = new AppUser
+            {
+                UserName = email,
+                Email    = email,
+                DisplayName      = name,
+                ExternalProvider = provider,
+                ExternalId       = externalId,
+                Status = UserStatus.PendingApproval,
+                Role   = UserRole.User,
+            };
+            var result = await _userManager.CreateAsync(user);
+            if (!result.Succeeded)
+                return BadRequest(new { error = result.Errors.Select(e => e.Description) });
+        }
+
+        var token = GenerateJwt(user);
+        return Ok(new AuthResponse(token, user.ToResponse()));
+    }
 
     private string GenerateJwt(AppUser user)
     {

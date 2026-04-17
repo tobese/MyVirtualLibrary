@@ -204,6 +204,30 @@ public class ApiClient
         response.EnsureSuccessStatusCode();
     }
 
+    // --- PKCE code exchange ---
+
+    /// <summary>
+    /// Sends the PKCE authorization code and its verifier to the API for
+    /// server-side token exchange and validation.
+    /// Prefer this over <see cref="ExternalLoginAsync"/> for new integrations.
+    /// </summary>
+    public async Task<AuthResponse?> ExchangeCodeAsync(
+        string provider, string code, string codeVerifier, string redirectUri)
+    {
+        var response = await _http.PostAsJsonAsync("/api/auth/exchange",
+            new TokenExchangeRequest(provider, code, codeVerifier, redirectUri),
+            AppJsonContext.Default.TokenExchangeRequest);
+        response.EnsureSuccessStatusCode();
+        var result = await response.Content.ReadFromJsonAsync(
+            AppJsonContext.Default.AuthResponse);
+        if (result != null)
+        {
+            SetToken(result.Token);
+            CurrentUser = result.User;
+        }
+        return result;
+    }
+
     // --- Shelf ---
 
     /// <summary>
