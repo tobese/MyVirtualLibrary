@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Text.Json;
 using VirtualLibrary.Shared;
 
 namespace VirtualLibrary.Client.Services;
@@ -14,8 +13,6 @@ public class ApiClient
     private readonly HttpClient _http;
     private string? _token;
     public UserResponse? CurrentUser { get; private set; }
-
-    private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web);
 
     public ApiClient()
     {
@@ -57,9 +54,10 @@ public class ApiClient
     public async Task<AuthResponse?> PasswordLoginAsync(string email, string password)
     {
         var response = await _http.PostAsJsonAsync("/api/auth/login/password",
-            new PasswordLoginRequest(email, password));
+            new PasswordLoginRequest(email, password),
+            AppJsonContext.Default.PasswordLoginRequest);
         response.EnsureSuccessStatusCode();
-        var result = await response.Content.ReadFromJsonAsync<AuthResponse>(_json);
+        var result = await response.Content.ReadFromJsonAsync(AppJsonContext.Default.AuthResponse);
         if (result != null)
         {
             SetToken(result.Token);
@@ -71,9 +69,10 @@ public class ApiClient
     public async Task<AuthResponse?> ExternalLoginAsync(string provider, string idToken)
     {
         var response = await _http.PostAsJsonAsync("/api/auth/login",
-            new ExternalLoginRequest(provider, idToken));
+            new ExternalLoginRequest(provider, idToken),
+            AppJsonContext.Default.ExternalLoginRequest);
         response.EnsureSuccessStatusCode();
-        var result = await response.Content.ReadFromJsonAsync<AuthResponse>(_json);
+        var result = await response.Content.ReadFromJsonAsync(AppJsonContext.Default.AuthResponse);
         if (result != null)
         {
             SetToken(result.Token);
@@ -97,7 +96,7 @@ public class ApiClient
             return null;
         }
         response.EnsureSuccessStatusCode();
-        var me = await response.Content.ReadFromJsonAsync<UserResponse>(_json);
+        var me = await response.Content.ReadFromJsonAsync(AppJsonContext.Default.UserResponse);
         CurrentUser = me;
         return me;
     }
@@ -106,7 +105,7 @@ public class ApiClient
     {
         var response = await _http.PostAsync("/api/auth/refresh", content: null);
         response.EnsureSuccessStatusCode();
-        var result = await response.Content.ReadFromJsonAsync<AuthResponse>(_json);
+        var result = await response.Content.ReadFromJsonAsync(AppJsonContext.Default.AuthResponse);
         if (result != null)
         {
             SetToken(result.Token);
@@ -122,37 +121,39 @@ public class ApiClient
         var url = "/api/users" + (status.HasValue ? $"?status={status.Value}" : "");
         var response = await _http.GetAsync(url);
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<List<UserResponse>>(_json) ?? new List<UserResponse>();
+        return await response.Content.ReadFromJsonAsync(AppJsonContext.Default.ListUserResponse) ?? new List<UserResponse>();
     }
 
     public async Task<UserResponse?> ApproveUserAsync(string userId, bool approved)
     {
         var response = await _http.PostAsJsonAsync($"/api/users/{userId}/approve",
-            new ApproveUserRequest(approved));
+            new ApproveUserRequest(approved),
+            AppJsonContext.Default.ApproveUserRequest);
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<UserResponse>(_json);
+        return await response.Content.ReadFromJsonAsync(AppJsonContext.Default.UserResponse);
     }
 
     public async Task<UserResponse?> ChangeRoleAsync(string userId, UserRole role)
     {
         var response = await _http.PostAsJsonAsync($"/api/users/{userId}/role",
-            new ChangeRoleRequest(role));
+            new ChangeRoleRequest(role),
+            AppJsonContext.Default.ChangeRoleRequest);
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<UserResponse>(_json);
+        return await response.Content.ReadFromJsonAsync(AppJsonContext.Default.UserResponse);
     }
 
     public async Task<UserResponse?> SuspendUserAsync(string userId)
     {
         var response = await _http.PostAsync($"/api/users/{userId}/suspend", content: null);
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<UserResponse>(_json);
+        return await response.Content.ReadFromJsonAsync(AppJsonContext.Default.UserResponse);
     }
 
     public async Task<UserResponse?> ReactivateUserAsync(string userId)
     {
         var response = await _http.PostAsync($"/api/users/{userId}/reactivate", content: null);
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<UserResponse>(_json);
+        return await response.Content.ReadFromJsonAsync(AppJsonContext.Default.UserResponse);
     }
 
     // --- Library ---
@@ -162,7 +163,7 @@ public class ApiClient
         var response = await _http.PostAsync($"/api/lookup/{isbn}", content: null);
         if (response.StatusCode == HttpStatusCode.NotFound) return null;
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<IsbnLookupResponse>(_json);
+        return await response.Content.ReadFromJsonAsync(AppJsonContext.Default.IsbnLookupResponse);
     }
 
     public async Task<List<UserBookDto>> GetBooksAsync(BookStatus? status = null)
@@ -170,7 +171,7 @@ public class ApiClient
         var url = "/api/books" + (status.HasValue ? $"?status={status.Value}" : "");
         var response = await _http.GetAsync(url);
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<List<UserBookDto>>(_json) ?? new();
+        return await response.Content.ReadFromJsonAsync(AppJsonContext.Default.ListUserBookDto) ?? new();
     }
 
     public async Task<UserBookDto?> GetBookAsync(Guid id)
@@ -178,20 +179,22 @@ public class ApiClient
         var response = await _http.GetAsync($"/api/books/{id}");
         if (response.StatusCode == HttpStatusCode.NotFound) return null;
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<UserBookDto>(_json);
+        return await response.Content.ReadFromJsonAsync(AppJsonContext.Default.UserBookDto);
     }
 
     public async Task<UserBookDto?> AddBookAsync(string isbn, BookStatus status = BookStatus.Owned)
     {
         var response = await _http.PostAsJsonAsync("/api/books",
-            new AddUserBookRequest(isbn, status));
+            new AddUserBookRequest(isbn, status),
+            AppJsonContext.Default.AddUserBookRequest);
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<UserBookDto>(_json);
+        return await response.Content.ReadFromJsonAsync(AppJsonContext.Default.UserBookDto);
     }
 
     public async Task UpdateBookAsync(Guid id, UpdateUserBookRequest request)
     {
-        var response = await _http.PatchAsJsonAsync($"/api/books/{id}", request);
+        var response = await _http.PatchAsJsonAsync($"/api/books/{id}", request,
+            AppJsonContext.Default.UpdateUserBookRequest);
         response.EnsureSuccessStatusCode();
     }
 
@@ -211,7 +214,7 @@ public class ApiClient
     {
         var response = await _http.GetAsync("/api/shelves/default");
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<ShelfDto>(_json);
+        return await response.Content.ReadFromJsonAsync(AppJsonContext.Default.ShelfDto);
     }
 
     /// <summary>
@@ -222,7 +225,8 @@ public class ApiClient
     {
         var response = await _http.PutAsJsonAsync(
             $"/api/shelves/{shelfId}/placements",
-            new SaveShelfPlacementsRequest(orderedUserBookIds.ToList()));
+            new SaveShelfPlacementsRequest(orderedUserBookIds.ToList()),
+            AppJsonContext.Default.SaveShelfPlacementsRequest);
         response.EnsureSuccessStatusCode();
     }
 }

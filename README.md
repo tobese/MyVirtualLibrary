@@ -166,7 +166,7 @@ Camera and flashlight permissions are declared in `VirtualLibrary.Client/Platfor
 - **`VirtualLibrary.Shared` fails with `IsExternalInit is not defined`** — the polyfill lives in `VirtualLibrary.Shared/Polyfills.cs`. Don't delete it; it's required because `netstandard2.1` predates C# 9 init-only setters.
 - **API boots then dies with `nodename nor servname provided, or not known`** — the default connection string uses `Host=db` (Docker Compose name). For a native run, override `ConnectionStrings__DefaultConnection` as shown above.
 - **`Microsoft.EntityFrameworkCore.Query[20504]` "loads related collections for more than one collection navigation"** — harmless; tracked as a future optimisation to enable `QuerySplittingBehavior.SplitQuery`.
-- **WASM build warns `IL2026` on JSON methods** — trim-safety warnings. They only matter once IL trimming is turned on; the fix is a `JsonSerializerContext` source-generator covering all `VirtualLibrary.Shared` DTOs.
+- **WASM build warns `IL2026` on JSON methods** — fixed in this repo: `AppJsonContext` (source-generated `JsonSerializerContext`) covers all DTOs and all `ApiClient` call-sites use the trim-safe `JsonTypeInfo<T>` overloads. If you see new IL2026 warnings after adding a DTO, add a matching `[JsonSerializable]` entry to `VirtualLibrary.Client/Services/AppJsonContext.cs`.
 - **Docker Desktop not running** — `docker compose up` fails with `Cannot connect to the Docker daemon`. Start Docker Desktop, or use Option B above.
 ## Implementation status
 See `docs/er-diagram.md` for the data model. Plan progress:
@@ -179,4 +179,4 @@ See `docs/er-diagram.md` for the data model. Plan progress:
 - [x] Android ISBN scanner — `IIsbnScanner` abstraction + `AndroidIsbnScanner` (live `Plugin.Scanner.Uno` path) + `AndroidManifest.xml` permissions + `ScannerBootstrap` DI wiring
 - [x] Virtual shelf: drag/drop reorder (`ListView` `CanReorderItems`) + physical-dimension spine widths + `ShelvesController` (load-or-create default shelf, batch-replace placements)
 - [x] Production OAuth wiring — `ExternalTokenValidatorFactory` (Google via `GoogleJsonWebSignature`, Apple via OIDC discovery + JWKS), `OAuthConfig` for client IDs, configurable via user secrets / env vars; implicit flow wired end-to-end (PKCE upgrade tracked in issue #5)
-- [ ] Source-gen JSON context for trim-safe WASM
+- [x] Trim-safe WASM — `AppJsonContext` source-generated `JsonSerializerContext` + all `ApiClient` call-sites use `JsonTypeInfo<T>` overloads; zero IL2026 warnings on Release WASM build
