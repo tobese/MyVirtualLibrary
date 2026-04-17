@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  # Cancel in-progress runs for the same branch/PR.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build & test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          # global.json pins the Uno.Sdk version; we need a .NET 10 SDK.
+          dotnet-version: '10.0.x'
+
+      - name: Print SDK info
+        run: dotnet --info
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'global.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore .NET workloads (Uno, WASM)
+        run: dotnet workload restore VirtualLibrary.Client/VirtualLibrary.Client.csproj
+
+      # ---- Shared ----
+      - name: Restore Shared
+        run: dotnet restore VirtualLibrary.Shared/VirtualLibrary.Shared.csproj
+
+      - name: Build Shared
+        run: dotnet build VirtualLibrary.Shared/VirtualLibrary.Shared.csproj -c Release --no-restore
+
+      # ---- API ----
+      - name: Restore API
+        run: dotnet restore VirtualLibrary.Api/VirtualLibrary.Api.csproj
+
+      - name: Build API
+        run: dotnet build VirtualLibrary.Api/VirtualLibrary.Api.csproj -c Release --no-restore
+
+      # ---- Client (WASM head) ----
+      - name: Restore Client (WASM)
+        run: dotnet restore VirtualLibrary.Client/VirtualLibrary.Client.csproj
+
+      - name: Build Client (WASM)
+        run: >
+          dotnet build VirtualLibrary.Client/VirtualLibrary.Client.csproj
+          -f net10.0-browserwasm
+          -c Release
+          --no-restore
+
+      # ---- Tests (auto-discovered) ----
+      - name: Run tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t TESTS < <(find . -name '*.Tests.csproj' \
+            -not -path './*/bin/*' -not -path './*/obj/*')
+          if [ ${#TESTS[@]} -eq 0 ]; then
+            echo "No *.Tests.csproj projects found — skipping dotnet test."
+            exit 0
+          fi
+          for p in "${TESTS[@]}"; do
+            echo "::group::dotnet test $p"
+            dotnet test "$p" -c Release --verbosity normal --logger "trx;LogFileName=test-results.trx"
+            echo "::endgroup::"
+          done
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: '**/TestResults/*.trx'
+          if-no-files-found: ignore
