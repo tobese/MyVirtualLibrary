@@ -113,6 +113,8 @@ All endpoints return JSON. All `/api/*` routes require `Authorization: Bearer <J
 - `GET  /api/books/{id}`            — single user-book
 - `PATCH /api/books/{id}`           — `{ "status"?, "rating"?, "notes"? }`
 - `DELETE /api/books/{id}`
+- `GET  /api/shelves/default`         — load-or-create default shelf (unplaced owned books merged in)
+- `PUT  /api/shelves/{id}/placements` — `{ "userBookIds": ["<uuid>", …] }` replaces all placements in slot order
 Enum reference: `BookStatus 0=WantToRead, 1=Owned, 2=Read`; `UserRole 0=User, 1=Admin, 2=SuperAdmin`; `UserStatus 0=PendingApproval, 1=Active, 2=Rejected, 3=Suspended`.
 ## Android barcode scanner
 The `ScanPage` resolves `VirtualLibrary.Client.Services.IIsbnScanner` via a tiny platform-conditional factory. On non-Android heads it falls back to `ManualIsbnScanner` (camera button disabled); on the Android head it uses `VirtualLibrary.Client.Platforms.Android.AndroidIsbnScanner` backed by `Plugin.Scanner.Uno 0.0.1` via ML Kit.
@@ -133,6 +135,6 @@ See `docs/er-diagram.md` for the data model. Plan progress:
 - [x] Docker Compose + multi-stage API Dockerfile
 - [x] Uno client pages: Login, PendingApproval, Scan, Library, BookDetail, Shelf, UserManagement
 - [x] Android ISBN scanner — `IIsbnScanner` abstraction + `AndroidIsbnScanner` (live `Plugin.Scanner.Uno` path) + `AndroidManifest.xml` permissions + `ScannerBootstrap` DI wiring
-- [ ] Virtual shelf: drag/drop placements + physical-dimension fallback
+- [x] Virtual shelf: drag/drop reorder (`ListView` `CanReorderItems`) + physical-dimension spine widths + `ShelvesController` (load-or-create default shelf, batch-replace placements)
 - [ ] Production OAuth wiring for Google / Apple
 - [ ] Source-gen JSON context for trim-safe WASM

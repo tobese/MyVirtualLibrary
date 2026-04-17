@@ -55,4 +55,20 @@ public static class Mapping
         ub.Rating,
         ub.Notes
     );
+
+    public static ShelfPlacementDto ToDto(this ShelfPlacement sp) => new(
+        sp.Id,
+        sp.UserBookId,
+        sp.Slot,
+        sp.UserBook.ToDto()
+    );
+
+    public static ShelfDto ToDto(this Shelf s) => new(
+        s.Id,
+        s.Name,
+        (s.Placements ?? new List<ShelfPlacement>())
+            .OrderBy(p => p.Slot)
+            .Select(p => p.ToDto())
+            .ToList()
+    );
 }

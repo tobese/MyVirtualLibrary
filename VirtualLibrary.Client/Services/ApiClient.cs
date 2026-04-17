@@ -200,4 +200,29 @@ public class ApiClient
         var response = await _http.DeleteAsync($"/api/books/{id}");
         response.EnsureSuccessStatusCode();
     }
+
+    // --- Shelf ---
+
+    /// <summary>
+    /// Returns the user's default shelf (lazily created by the API).
+    /// Unplaced owned books are appended at the end.
+    /// </summary>
+    public async Task<ShelfDto?> GetDefaultShelfAsync()
+    {
+        var response = await _http.GetAsync("/api/shelves/default");
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<ShelfDto>(_json);
+    }
+
+    /// <summary>
+    /// Replaces all placements on the shelf with the provided ordered list
+    /// of <see cref="UserBookDto.Id"/> values.
+    /// </summary>
+    public async Task SaveShelfAsync(Guid shelfId, IEnumerable<Guid> orderedUserBookIds)
+    {
+        var response = await _http.PutAsJsonAsync(
+            $"/api/shelves/{shelfId}/placements",
+            new SaveShelfPlacementsRequest(orderedUserBookIds.ToList()));
+        response.EnsureSuccessStatusCode();
+    }
 }
