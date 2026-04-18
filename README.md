@@ -176,13 +176,14 @@ Catalyst camera access requires two things to be bundled into the signed `.app`:
 
 Both are already wired via the `maccatalyst` PropertyGroup / ItemGroup in `VirtualLibrary.Client.csproj`; no further manifest edits are needed.
 ## Troubleshooting
-- **Mac Catalyst build fails: "This version of .NET for MacCatalyst requires Xcode X.Y"** — the .NET MacCatalyst workload is compiled against a specific Xcode SDK and is ABI-incompatible with any other Xcode major.minor version. Setting `ValidateXcodeVersion=false` bypasses the initial guard but the linker will still fail with ICU undefined-symbol errors (e.g. `_u_errorName_77`) because the ICU library version embedded in the workload doesn't match what the installed Xcode ships.
-  - **Root cause**: Xcode 26.4.x ships ICU 78; workload 26.2.10233 (built for Xcode 26.3) embeds ICU 77. These are binary-incompatible; `ValidateXcodeVersion=false` cannot resolve this.
-  - **Fix A (recommended)**: install the required Xcode from [developer.apple.com/download/more](https://developer.apple.com/download/more) and select it for dotnet builds only without changing the system default:
+- **Mac Catalyst build requires Apple Silicon** — Xcode 26.x is ARM64-only; building `net10.0-maccatalyst` on an Intel Mac fails with `Bad CPU type in executable` from `xcodebuild`/`actool`. An M-series Mac is required.
+- **Mac Catalyst build fails: "This version of .NET for MacCatalyst requires Xcode X.Y"** (Apple Silicon only) — the .NET MacCatalyst workload is ABI-tied to a specific Xcode version. Setting `ValidateXcodeVersion=false` bypasses the guard but the linker still fails with ICU undefined-symbol errors (e.g. `_u_errorName_77`) because the ICU version in the workload doesn't match what the installed Xcode ships.
+  - **Root cause**: Xcode 26.4.x ships ICU 78; workload 26.2.10233 (built for Xcode 26.3) embeds ICU 77. Binary-incompatible; `ValidateXcodeVersion=false` cannot resolve this.
+  - **Fix A**: install the required Xcode from [developer.apple.com/download/more](https://developer.apple.com/download/more) and point dotnet at it without changing the system default:
     ```bash
     DEVELOPER_DIR=/Applications/Xcode-26.3.app/Contents/Developer dotnet build VirtualLibrary.Client -f net10.0-maccatalyst
     ```
-  - **Fix B**: run `sudo dotnet workload update` once Microsoft ships a MacCatalyst workload targeting your Xcode version (check [aka.ms/xcode-requirement](https://aka.ms/xcode-requirement)).
+  - **Fix B**: run `sudo dotnet workload update` once Microsoft ships a workload targeting your Xcode version (see [aka.ms/xcode-requirement](https://aka.ms/xcode-requirement)).
 - **`VirtualLibrary.Shared` fails with `IsExternalInit is not defined`** — the polyfill lives in `VirtualLibrary.Shared/Polyfills.cs`. Don't delete it; it's required because `netstandard2.1` predates C# 9 init-only setters.
 - **API boots then dies with `nodename nor servname provided, or not known`** — the default connection string uses `Host=db` (Docker Compose name). For a native run, override `ConnectionStrings__DefaultConnection` as shown above.
 - **`Microsoft.EntityFrameworkCore.Query[20504]` "loads related collections for more than one collection navigation"** — harmless; tracked as a future optimisation to enable `QuerySplittingBehavior.SplitQuery`.
