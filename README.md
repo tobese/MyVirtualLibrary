@@ -6,7 +6,7 @@ MyVirtualLibrary/
 ├── VirtualLibrary.Shared/   # DTOs, enums (netstandard2.1, used by API + client)
 ├── VirtualLibrary.Api/      # ASP.NET Core 10 Web API + EF Core + Identity
 │   └── Migrations/          # EF Core migrations (InitialCreate)
-├── VirtualLibrary.Client/   # Uno Platform app (net10.0-browserwasm, net10.0-android)
+├── VirtualLibrary.Client/   # Uno Platform app (net10.0-browserwasm, net10.0-android, net10.0-maccatalyst)
 ├── docs/
 │   └── er-diagram.md        # Mermaid ER diagram of the schema
 ├── docker-compose.yml       # api + postgres:16
@@ -21,6 +21,7 @@ Schema reference: [`docs/er-diagram.md`](docs/er-diagram.md).
 - Optional:
   - `dotnet-ef` global tool (for generating migrations): `dotnet tool install -g dotnet-ef`.
   - **Android workload** if you want to build the Android head: `dotnet workload install android`.
+  - **macOS Catalyst workload** if you want to build the Mac desktop head: `dotnet workload install maccatalyst` (macOS only; Xcode required for signing on real hardware).
 ## First-time setup
 From the repo root:
 ```bash
@@ -59,18 +60,22 @@ Useful when Docker isn't running. Works with Homebrew's `postgresql@16` or `post
     ```
     Health probe: `curl http://localhost:5179/health` → `{"status":"healthy"}`.
 ### Running the Uno client
-The client is a single Uno project targeting WASM and Android.
+The client is a single Uno project targeting WASM, Android, and Mac Catalyst.
 ```bash
 # Web (WASM) — opens http://localhost:5000 with hot reload
 dotnet run --project VirtualLibrary.Client -f net10.0-browserwasm
 
 # Android (requires the Android workload + running emulator)
 dotnet build VirtualLibrary.Client -f net10.0-android
+
+# Mac Catalyst (macOS host only; requires the maccatalyst workload + Xcode for signing)
+dotnet build VirtualLibrary.Client -f net10.0-maccatalyst
+dotnet run   --project VirtualLibrary.Client -f net10.0-maccatalyst
 ```
 The client's `ApiClient` resolves the API base URL per-platform (`Services/ApiClient.cs`):
 - WASM → empty base URL (same-origin; reverse-proxy `/api/*` to the backend in prod, or run with CORS on in dev).
 - Android emulator → `http://10.0.2.2:5179`.
-- Desktop/iOS → `http://localhost:5179`.
+- Desktop/iOS/Mac Catalyst → `http://localhost:5179`.
 Update those constants if you move the API off `5179`.
 ## Default credentials
 In `Development`, the API seeds one account on startup (`Program.cs → SeedSuperAdminAsync`):
@@ -158,11 +163,26 @@ public const string AppleClientId  = "com.yourcompany.virtualibrary.web";
 These values appear in browser URLs and are safe to commit.
 ### Remaining work
 - iOS native Sign In with Apple button via `AuthenticationServices.ASAuthorizationController` (requires adding `net10.0-ios` TFM).
-## Android barcode scanner
-The `ScanPage` resolves `VirtualLibrary.Client.Services.IIsbnScanner` via a tiny platform-conditional factory. On non-Android heads it falls back to `ManualIsbnScanner` (camera button disabled); on the Android head it uses `VirtualLibrary.Client.Platforms.Android.AndroidIsbnScanner` backed by `Plugin.Scanner.Uno 0.0.1` via ML Kit.
-`USE_PLUGIN_SCANNER_UNO` is defined unconditionally for the Android TFM in `VirtualLibrary.Client.csproj`, so the live camera path is active. `ScannerBootstrap` wires a minimal `ServiceCollection` with `Plugin.Scanner.Uno.Android.CurrentActivity` (the Uno-aware activity provider) + `AddScanner()`, then caches the resolved `IBarcodeScanner` for the app lifetime.
-Camera and flashlight permissions are declared in `VirtualLibrary.Client/Platforms/Android/AndroidManifest.xml`; no further manifest edits are needed.
+## Barcode scanner (Android + Mac Catalyst)
+The `ScanPage` resolves `VirtualLibrary.Client.Services.IIsbnScanner` via a tiny platform-conditional factory. On heads without a camera backend it falls back to `ManualIsbnScanner` (camera button disabled). Two live backends ship today:
+
+- **Android** — `VirtualLibrary.Client.Platforms.Android.AndroidIsbnScanner` backed by `Plugin.Scanner.Uno 0.0.1` (ML Kit). `USE_PLUGIN_SCANNER_UNO` is defined unconditionally for the Android TFM in `VirtualLibrary.Client.csproj`, so the live camera path is active. `ScannerBootstrap` wires a minimal `ServiceCollection` with `Plugin.Scanner.Uno.Android.CurrentActivity` (the Uno-aware activity provider) + `AddScanner()`, then caches the resolved `IBarcodeScanner` for the app lifetime. Camera and flashlight permissions are declared in `VirtualLibrary.Client/Platforms/Android/AndroidManifest.xml`.
+- **Mac Catalyst** — `VirtualLibrary.Client.Platforms.MacCatalyst.MacCatalystIsbnScanner`, a hand-rolled AVFoundation `UIViewController` that wraps `AVCaptureSession` + `AVCaptureMetadataOutput` targeting `EAN13` / `EAN8` symbologies. No third-party scanner dependency — the Mac Catalyst runtime ships AVFoundation, so the code lives alongside the head. `USE_AVFOUNDATION_SCANNER` is defined automatically for the Catalyst TFM. The scanner works with the built-in FaceTime HD camera, external USB webcams, and Continuity Camera (iPhone-as-webcam). `IsSupported` is evaluated dynamically — Macs with no attached camera fall back to manual entry instead of crashing.
+
+Catalyst camera access requires two things to be bundled into the signed `.app`:
+
+1. `NSCameraUsageDescription` in `VirtualLibrary.Client/Platforms/MacCatalyst/Info.plist` (the string shown in the system permission dialog).
+2. The `com.apple.security.device.camera` entitlement in `VirtualLibrary.Client/Platforms/MacCatalyst/Entitlements.plist` — required because Catalyst apps run sandboxed by default.
+
+Both are already wired via the `maccatalyst` PropertyGroup / ItemGroup in `VirtualLibrary.Client.csproj`; no further manifest edits are needed.
 ## Troubleshooting
+- **Mac Catalyst build fails: "This version of .NET for MacCatalyst requires Xcode X.Y"** — the .NET MacCatalyst workload is compiled against a specific Xcode SDK and is ABI-incompatible with any other Xcode major.minor version. Setting `ValidateXcodeVersion=false` bypasses the initial guard but the linker will still fail with ICU undefined-symbol errors (e.g. `_u_errorName_77`) because the ICU library version embedded in the workload doesn't match what the installed Xcode ships.
+  - **Root cause**: Xcode 26.4.x ships ICU 78; workload 26.2.10233 (built for Xcode 26.3) embeds ICU 77. These are binary-incompatible; `ValidateXcodeVersion=false` cannot resolve this.
+  - **Fix A (recommended)**: install the required Xcode from [developer.apple.com/download/more](https://developer.apple.com/download/more) and select it for dotnet builds only without changing the system default:
+    ```bash
+    DEVELOPER_DIR=/Applications/Xcode-26.3.app/Contents/Developer dotnet build VirtualLibrary.Client -f net10.0-maccatalyst
+    ```
+  - **Fix B**: run `sudo dotnet workload update` once Microsoft ships a MacCatalyst workload targeting your Xcode version (check [aka.ms/xcode-requirement](https://aka.ms/xcode-requirement)).
 - **`VirtualLibrary.Shared` fails with `IsExternalInit is not defined`** — the polyfill lives in `VirtualLibrary.Shared/Polyfills.cs`. Don't delete it; it's required because `netstandard2.1` predates C# 9 init-only setters.
 - **API boots then dies with `nodename nor servname provided, or not known`** — the default connection string uses `Host=db` (Docker Compose name). For a native run, override `ConnectionStrings__DefaultConnection` as shown above.
 - **`Microsoft.EntityFrameworkCore.Query[20504]` "loads related collections for more than one collection navigation"** — harmless; tracked as a future optimisation to enable `QuerySplittingBehavior.SplitQuery`.
@@ -177,6 +197,7 @@ See `docs/er-diagram.md` for the data model. Plan progress:
 - [x] Docker Compose + multi-stage API Dockerfile
 - [x] Uno client pages: Login, PendingApproval, Scan, Library, BookDetail, Shelf, UserManagement
 - [x] Android ISBN scanner — `IIsbnScanner` abstraction + `AndroidIsbnScanner` (live `Plugin.Scanner.Uno` path) + `AndroidManifest.xml` permissions + `ScannerBootstrap` DI wiring
+- [x] Mac Catalyst ISBN scanner — `net10.0-maccatalyst` TFM + hand-rolled AVFoundation `MacCatalystIsbnScanner` (EAN-13/EAN-8 via `AVCaptureMetadataOutput`) + `Info.plist` / `Entitlements.plist` with `NSCameraUsageDescription` and `com.apple.security.device.camera`; supports built-in, external, and Continuity cameras, degrades to manual entry on camera-less Macs
 - [x] Virtual shelf: drag/drop reorder (`ListView` `CanReorderItems`) + physical-dimension spine widths + `ShelvesController` (load-or-create default shelf, batch-replace placements)
 - [x] Production OAuth wiring — `ExternalTokenValidatorFactory` (Google via `GoogleJsonWebSignature`, Apple via OIDC discovery + JWKS), `OAuthConfig` for client IDs, configurable via user secrets / env vars; implicit flow wired end-to-end (PKCE upgrade tracked in issue #5)
 - [x] Trim-safe WASM — `AppJsonContext` source-generated `JsonSerializerContext` + all `ApiClient` call-sites use `JsonTypeInfo<T>` overloads; zero IL2026 warnings on Release WASM build

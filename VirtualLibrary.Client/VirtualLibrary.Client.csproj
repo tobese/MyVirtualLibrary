@@ -1,6 +1,6 @@
 <Project Sdk="Uno.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net10.0-browserwasm;net10.0-android</TargetFrameworks>
+    <TargetFrameworks>net10.0-browserwasm;net10.0-android;net10.0-maccatalyst</TargetFrameworks>
 
     <OutputType>Exe</OutputType>
     <UnoSingleProject>true</UnoSingleProject>
@@ -53,5 +53,31 @@
          https://github.com/dotnet/android-libraries/issues/1341 -->
     <PackageReference Include="Xamarin.AndroidX.Compose.Runtime.Annotation.Jvm" ExcludeAssets="all" />
   </ItemGroup>
+
+  <!-- Mac Catalyst head. Scanner is a hand-rolled AVFoundation UIViewController
+       (see Platforms/MacCatalyst/MacCatalystIsbnScanner.cs) so we don't need a
+       third-party scanner package on this TFM — only the camera entitlement +
+       NSCameraUsageDescription in the bundled Info.plist. Minimum OS targets
+       Catalyst 15.0 (macOS 12 Monterey) which AVCaptureMetadataOutput + the
+       ean13 symbology have supported since iOS 7 / Catalyst 13; 15.0 gives us
+       modern async APIs and matches Uno's current Catalyst floor. -->
+  <PropertyGroup Condition="$(TargetFramework.Contains('maccatalyst'))">
+    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
+    <DefineConstants>$(DefineConstants);USE_AVFOUNDATION_SCANNER</DefineConstants>
+    <!-- KNOWN ISSUE: the .NET MacCatalyst workload (26.2.10233) was built for
+         Xcode 26.3 and is not ABI-compatible with Xcode 26.4.1. Setting
+         ValidateXcodeVersion=false bypasses the guard but the linker will still
+         fail with ICU v77 undefined-symbol errors (see
+         https://aka.ms/xcode-requirement). Resolution: either install Xcode 26.3
+         from developer.apple.com/download/more or wait for Microsoft to ship a
+         MacCatalyst workload targeting Xcode 26.4.x and re-run
+         `sudo dotnet workload update`. -->
+    <!-- Point the .NET-for-iOS / MacCatalyst SDK at our Info.plist + Entitlements
+         so the signed .app declares camera access. Without
+         NSCameraUsageDescription, -[AVCaptureDevice requestAccessForMediaType:]
+         hard-crashes the app on first prompt. -->
+    <ApplicationPlistFile>Platforms/MacCatalyst/Info.plist</ApplicationPlistFile>
+    <CodesignEntitlements>Platforms/MacCatalyst/Entitlements.plist</CodesignEntitlements>
+  </PropertyGroup>
 
 </Project>
