@@ -26,7 +26,7 @@ public class ApiClient
     {
 #if __WASM__
         // In WASM, use the same origin; nginx reverse-proxies /api/* to the backend.
-        return "";
+        return Uno.Foundation.WebAssemblyRuntime.InvokeJS("window.location.origin") + "/";
 #elif __ANDROID__
         // 10.0.2.2 is the Android emulator's loopback alias for the host machine.
         return "http://10.0.2.2:5179";
@@ -182,10 +182,10 @@ public class ApiClient
         return await response.Content.ReadFromJsonAsync(AppJsonContext.Default.UserBookDto);
     }
 
-    public async Task<UserBookDto?> AddBookAsync(string isbn, BookStatus status = BookStatus.Owned)
+    public async Task<UserBookDto?> AddBookAsync(string isbn, BookStatus status = BookStatus.WantToRead, bool isOwned = true)
     {
         var response = await _http.PostAsJsonAsync("/api/books",
-            new AddUserBookRequest(isbn, status),
+            new AddUserBookRequest(isbn, status, isOwned),
             AppJsonContext.Default.AddUserBookRequest);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync(AppJsonContext.Default.UserBookDto);
@@ -198,10 +198,78 @@ public class ApiClient
         response.EnsureSuccessStatusCode();
     }
 
+    // --- Read records ---
+
+    public async Task<ReadRecordDto?> AddReadRecordAsync(Guid userBookId, DateTime? dateRead = null, string? notes = null)
+    {
+        var response = await _http.PostAsJsonAsync(
+            $"/api/books/{userBookId}/reads",
+            new AddReadRecordRequest(dateRead, notes),
+            AppJsonContext.Default.AddReadRecordRequest);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync(AppJsonContext.Default.ReadRecordDto);
+    }
+
+    public async Task DeleteReadRecordAsync(Guid userBookId, Guid recordId)
+    {
+        var response = await _http.DeleteAsync($"/api/books/{userBookId}/reads/{recordId}");
+        response.EnsureSuccessStatusCode();
+    }
+
     public async Task DeleteBookAsync(Guid id)
     {
         var response = await _http.DeleteAsync($"/api/books/{id}");
         response.EnsureSuccessStatusCode();
+    }
+
+#if DEBUG
+    // --- Dev login (DEBUG only) ---
+
+    /// <summary>
+    /// Issues a real JWT for the named test persona without any credentials.
+    /// Only works when the API is running in Development mode.
+    /// </summary>
+    public async Task<AuthResponse?> DevLoginAsync(string persona)
+    {
+        var response = await _http.PostAsJsonAsync("/api/auth/dev-login",
+            new DevLoginRequest(persona),
+            AppJsonContext.Default.DevLoginRequest);
+        response.EnsureSuccessStatusCode();
+        var result = await response.Content.ReadFromJsonAsync(AppJsonContext.Default.AuthResponse);
+        if (result != null)
+        {
+            SetToken(result.Token);
+            CurrentUser = result.User;
+        }
+        return result;
+    }
+#endif
+
+    // --- Stats ---
+
+    /// <summary>Fetches whole-library statistics. Requires Admin or SuperAdmin role.</summary>
+    public async Task<LibraryStatsDto?> GetStatsAsync()
+    {
+        var response = await _http.GetAsync("/api/stats");
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync(AppJsonContext.Default.LibraryStatsDto);
+    }
+
+    // --- Bulk import ---
+
+    /// <summary>
+    /// Sends a list of ISBNs to POST /api/import and returns the structured log.
+    /// </summary>
+    public async Task<BulkImportResponse?> ImportBooksAsync(
+        List<string> isbns,
+        BookStatus defaultStatus = BookStatus.WantToRead,
+        bool defaultIsOwned = true)
+    {
+        var response = await _http.PostAsJsonAsync("/api/import",
+            new BulkImportRequest(isbns, defaultStatus, defaultIsOwned),
+            AppJsonContext.Default.BulkImportRequest);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync(AppJsonContext.Default.BulkImportResponse);
     }
 
     // --- PKCE code exchange ---

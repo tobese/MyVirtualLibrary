@@ -54,11 +54,16 @@ builder.Services.AddAuthentication(options =>
 });
 
 // Only Active users can hit library endpoints.
+// AdminUser additionally requires Admin or SuperAdmin role (used by stats, user management, etc.).
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("ActiveUser", policy =>
         policy.RequireAuthenticatedUser()
               .RequireClaim("status", UserStatus.Active.ToString()));
+
+    options.AddPolicy("AdminUser", policy =>
+        policy.RequireAuthenticatedUser()
+              .RequireRole(UserRole.Admin.ToString(), UserRole.SuperAdmin.ToString()));
 });
 
 // External OAuth token validator (Google + Apple)
@@ -69,6 +74,9 @@ builder.Services.AddScoped<ITokenExchangeService, TokenExchangeService>();
 // OpenLibrary client
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<IOpenLibraryClient, OpenLibraryClient>();
+
+// Bulk import
+builder.Services.AddScoped<IBulkImportService, BulkImportService>();
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
@@ -96,6 +104,11 @@ if (app.Environment.IsDevelopment())
     // Seed a SuperAdmin if none exists
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
     await SeedSuperAdminAsync(userManager);
+
+#if DEBUG
+    // Seed one test persona per role/status combination for use with the dev-login panel.
+    await SeedDevPersonasAsync(userManager);
+#endif
 
     app.MapOpenApi();
 }
@@ -127,3 +140,47 @@ static async Task SeedSuperAdminAsync(UserManager<AppUser> userManager)
     // Create with a default password for local dev — change in production
     await userManager.CreateAsync(admin, "Admin123!");
 }
+
+#if DEBUG
+/// <summary>
+/// Seeds one fixed test account per role/status combination.
+/// Idempotent — safe to call on every restart.
+/// Only runs in Debug builds; never compiled into Release.
+/// </summary>
+static async Task SeedDevPersonasAsync(UserManager<AppUser> userManager)
+{
+    var personas = new[]
+    {
+        new { Email = "superadmin@dev.local", Name = "Dev SuperAdmin",
+              Role = UserRole.SuperAdmin, Status = UserStatus.Active },
+        new { Email = "admin@dev.local",      Name = "Dev Admin",
+              Role = UserRole.Admin,      Status = UserStatus.Active },
+        new { Email = "member@dev.local",     Name = "Dev Member",
+              Role = UserRole.User,       Status = UserStatus.Active },
+        new { Email = "pending@dev.local",    Name = "Dev Pending",
+              Role = UserRole.User,       Status = UserStatus.PendingApproval },
+        new { Email = "suspended@dev.local",  Name = "Dev Suspended",
+              Role = UserRole.User,       Status = UserStatus.Suspended },
+    };
+
+    foreach (var p in personas)
+    {
+        if (await userManager.FindByEmailAsync(p.Email) is not null) continue;
+
+        var user = new AppUser
+        {
+            UserName         = p.Email,
+            Email            = p.Email,
+            DisplayName      = p.Name,
+            Role             = p.Role,
+            Status           = p.Status,
+            ExternalProvider = "Dev",
+            ExternalId       = $"dev-{p.Email}",
+        };
+
+        // Password is never used — dev-login bypasses credential checks.
+        // Identity requires one, so we supply a throwaway.
+        await userManager.CreateAsync(user, "DevOnly!0");
+    }
+}
+#endif

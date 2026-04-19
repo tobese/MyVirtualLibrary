@@ -46,14 +46,22 @@ public static class Mapping
         (e.Covers ?? new List<Cover>()).Select(c => c.ToDto()).ToList()
     );
 
+    public static ReadRecordDto ToDto(this ReadRecord r) =>
+        new(r.Id, r.DateRead, r.Notes);
+
     public static UserBookDto ToDto(this UserBook ub) => new(
         ub.Id,
         ub.EditionId,
         ub.Edition.ToDto(),
         ub.Status,
+        ub.IsOwned,
         ub.DateAdded,
         ub.Rating,
-        ub.Notes
+        ub.Notes,
+        (ub.ReadRecords ?? new List<ReadRecord>())
+            .OrderByDescending(r => r.DateRead)
+            .Select(r => r.ToDto())
+            .ToList()
     );
 
     public static ShelfPlacementDto ToDto(this ShelfPlacement sp) => new(

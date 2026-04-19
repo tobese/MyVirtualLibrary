@@ -4,15 +4,16 @@ in `VirtualLibrary.Api/Data/AppDbContext.cs`. Render it with any Mermaid-aware v
 (e.g. GitHub, the [Mermaid Live Editor](https://mermaid.live), or VS Code's Markdown preview).
 ```mermaid
 erDiagram
-    AppUser ||--o{ UserBook       : owns
-    AppUser ||--o{ Shelf          : owns
-    Work    ||--o{ Edition        : "has editions"
-    Edition ||--o{ UserBook       : "tracked by"
-    Edition ||--o{ Cover          : "has covers"
-    Edition ||--o{ EditionAuthor  : "lists"
-    Author  ||--o{ EditionAuthor  : "writes"
-    Shelf   ||--o{ ShelfPlacement : "contains"
+    AppUser  ||--o{ UserBook       : owns
+    AppUser  ||--o{ Shelf          : owns
+    Work     ||--o{ Edition        : "has editions"
+    Edition  ||--o{ UserBook       : "tracked by"
+    Edition  ||--o{ Cover          : "has covers"
+    Edition  ||--o{ EditionAuthor  : "lists"
+    Author   ||--o{ EditionAuthor  : "writes"
+    Shelf    ||--o{ ShelfPlacement : "contains"
     UserBook ||--o{ ShelfPlacement : "placed at"
+    UserBook ||--o{ ReadRecord     : "read instances"
 
     AppUser {
         string   Id PK
@@ -84,8 +85,16 @@ erDiagram
         string   UserId FK
         Guid     EditionId FK
         string   Status
+        bool     IsOwned
         DateTime DateAdded
         int      Rating
+        string   Notes
+    }
+
+    ReadRecord {
+        Guid     Id PK
+        Guid     UserBookId FK
+        DateTime DateRead
         string   Notes
     }
 
@@ -111,5 +120,9 @@ erDiagram
   tables (`AspNetRoles`, `AspNetUserClaims`, `AspNetUserLogins`, `AspNetUserTokens`,
   `AspNetUserRoles`) exist in the database but are omitted here for readability.
 * `UserBook` is unique on `(UserId, EditionId)`.
+* `UserBook.Status` is `WantToRead` or `Read`. Ownership is tracked separately via
+  `IsOwned` so a book can be owned in any reading state (e.g. owned + want-to-read).
+* `UserBook.IsOwned` controls which books appear on the virtual shelf.
+* `ReadRecord` allows multiple readings of the same book to be logged over time.
 * `Work.Subjects` is stored as PostgreSQL `jsonb` via an EF Core value conversion.
-* `AppUser.Role` and `AppUser.Status` are persisted as strings (`HasConversion<string>()`).
+* `AppUser.Role`, `AppUser.Status`, and `UserBook.Status` are persisted as strings (`HasConversion<string>()`).

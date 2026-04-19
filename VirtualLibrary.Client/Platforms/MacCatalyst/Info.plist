@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+    Mac Catalyst Info.plist. Merged into the Uno-synthesised Info.plist at
+    build time (mirrors how AndroidManifest.xml is merged on the Android
+    head). Only keys that can't be derived from csproj metadata live here.
+
+    NSCameraUsageDescription is mandatory: without it macOS immediately
+    terminates the app the first time AVCaptureDevice requests access, which
+    reads as a silent crash in production. The string is shown verbatim in
+    the system permission dialog so it should explain *why* we need the
+    camera in plain language.
+
+    LSApplicationCategoryType keeps the app's Finder / Launchpad categorisation
+    sane; public.app-category.productivity matches a library/book tracker.
+-->
+<plist version="1.0">
+<dict>
+    <key>NSCameraUsageDescription</key>
+    <string>Virtual Library uses the camera to scan ISBN barcodes on the back of books and add them to your library.</string>
+
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.productivity</string>
+
+    <key>LSMinimumSystemVersion</key>
+    <string>12.0</string>
+
+    <key>UIDeviceFamily</key>
+    <array>
+        <!-- 2 = iPad; required for Mac Catalyst even though the app runs on macOS. -->
+        <integer>2</integer>
+    </array>
+
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <!-- Don't list "still-camera" here: Catalyst apps must launch on Macs
+             without a built-in camera (e.g. a Mac mini driving an external
+             webcam, or no camera at all — the scanner degrades to manual
+             entry via the IsSupported check in MacCatalystIsbnScanner). -->
+        <string>arm64</string>
+    </array>
+
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+</dict>
+</plist>

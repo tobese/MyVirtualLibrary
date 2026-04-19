@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+    Mac Catalyst code-sign entitlements. Referenced from
+    <CodesignEntitlements> in VirtualLibrary.Client.csproj (maccatalyst
+    PropertyGroup).
+
+    - app-sandbox:       Catalyst apps ship sandboxed by default; we keep it
+                         on so Apple's notarisation / App Store submission
+                         remains possible.
+    - device.camera:     Grants the sandboxed process permission to open a
+                         capture session against a local camera. Without
+                         this, AVCaptureSession.StartRunning silently
+                         produces no frames on a sandboxed Mac app.
+    - network.client:    Needed so the app can reach the VirtualLibrary API
+                         (http://localhost:5179 in dev) after a scan.
+-->
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+    <key>com.apple.security.device.camera</key>
+    <true/>
+    <key>com.apple.security.network.client</key>
+    <true/>
+</dict>
+</plist>

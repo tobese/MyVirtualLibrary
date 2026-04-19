@@ -35,3 +35,11 @@ public record TokenExchangeRequest(
     string CodeVerifier,
     string RedirectUri
 );
+
+#if DEBUG
+/// <summary>
+/// DEV ONLY — issued by the dev-login endpoint and consumed by DevLoginPage.
+/// Not compiled into Release builds.
+/// </summary>
+public record DevLoginRequest(string Persona);
+#endif

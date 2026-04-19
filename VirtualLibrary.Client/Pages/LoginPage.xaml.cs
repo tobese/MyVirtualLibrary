@@ -169,6 +169,19 @@ public sealed partial class LoginPage : Page
                $"&code_challenge_method=S256";
     }
 
+#if DEBUG
+    private void OnDevLogin(object sender, RoutedEventArgs e)
+        => Frame.Navigate(typeof(DevLoginPage));
+#else
+    // Release: collapse the button so it is never visible even if XAML renders it.
+    protected override void OnNavigatedTo(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+        if (DevLoginButton != null)
+            DevLoginButton.Visibility = Visibility.Collapsed;
+    }
+#endif
+
     private void NavigateByStatus(UserStatus status)
     {
         var frame = this.Frame;

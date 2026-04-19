@@ -38,6 +38,15 @@
                        Foreground="Red"
                        HorizontalAlignment="Center"
                        TextWrapping="Wrap" />
+
+            <!-- Dev login shortcut — hidden in Release builds via code-behind -->
+            <Button x:Name="DevLoginButton"
+                    Content="Dev Login"
+                    Click="OnDevLogin"
+                    HorizontalAlignment="Stretch"
+                    Opacity="0.45"
+                    Padding="16,10" />
+
         </StackPanel>
     </Grid>
 </Page>

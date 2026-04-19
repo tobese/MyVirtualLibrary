@@ -80,6 +80,12 @@ public sealed partial class ScanPage : Page
             // Fallback stub — reached only if USE_PLUGIN_SCANNER_UNO is not set
             // (i.e. during development without the package).
             new Platforms.Android.AndroidIsbnScanner();
+#elif USE_AVFOUNDATION_SCANNER && __MACCATALYST__
+            // Mac Catalyst head: hand-rolled AVFoundation
+            // (AVCaptureSession + AVCaptureMetadataOutput) targeting EAN-13/EAN-8.
+            // No third-party scanner dependency — see
+            // Platforms/MacCatalyst/MacCatalystIsbnScanner.cs.
+            new Platforms.MacCatalyst.MacCatalystIsbnScanner();
 #else
             new ManualIsbnScanner();
 #endif
@@ -118,15 +124,11 @@ public sealed partial class ScanPage : Page
                 : "";
             PreviewPanel.Visibility = Visibility.Visible;
 
-            var status = (StatusCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() switch
-            {
-                "WantToRead" => BookStatus.WantToRead,
-                "Read"       => BookStatus.Read,
-                _            => BookStatus.Owned,
-            };
+            var status  = StatusCombo.SelectedIndex == 1 ? BookStatus.Read : BookStatus.WantToRead;
+            var isOwned = OwnedCheck.IsChecked == true;
 
             StatusText.Text = "Adding to your library…";
-            var added = await _api.AddBookAsync(isbn, status);
+            var added = await _api.AddBookAsync(isbn, status, isOwned);
             if (added == null)
             {
                 StatusText.Text = "Add failed.";

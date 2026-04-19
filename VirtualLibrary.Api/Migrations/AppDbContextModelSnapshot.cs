@@ -260,6 +260,9 @@ namespace VirtualLibrary.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateTime?>("OlLastModified")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("OpenLibraryId")
                         .HasColumnType("text");
 
@@ -325,6 +328,9 @@ namespace VirtualLibrary.Api.Migrations
 
                     b.Property<int?>("NumberOfPages")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime?>("OlLastModified")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("OpenLibraryId")
                         .HasColumnType("text");
@@ -434,6 +440,28 @@ namespace VirtualLibrary.Api.Migrations
                     b.ToTable("ShelfPlacements");
                 });
 
+            modelBuilder.Entity("VirtualLibrary.Api.Models.ReadRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("DateRead")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserBookId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserBookId");
+
+                    b.ToTable("ReadRecords");
+                });
+
             modelBuilder.Entity("VirtualLibrary.Api.Models.UserBook", b =>
                 {
                     b.Property<Guid>("Id")
@@ -445,6 +473,9 @@ namespace VirtualLibrary.Api.Migrations
 
                     b.Property<Guid>("EditionId")
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("IsOwned")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Notes")
                         .HasColumnType("text");
@@ -484,6 +515,9 @@ namespace VirtualLibrary.Api.Migrations
 
                     b.Property<int?>("FirstPublishYear")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime?>("OlLastModified")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("OpenLibraryId")
                         .HasColumnType("text");
@@ -553,6 +587,17 @@ namespace VirtualLibrary.Api.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("VirtualLibrary.Api.Models.ReadRecord", b =>
+                {
+                    b.HasOne("VirtualLibrary.Api.Models.UserBook", "UserBook")
+                        .WithMany("ReadRecords")
+                        .HasForeignKey("UserBookId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("UserBook");
                 });
 
             modelBuilder.Entity("VirtualLibrary.Api.Models.Cover", b =>
@@ -659,6 +704,11 @@ namespace VirtualLibrary.Api.Migrations
             modelBuilder.Entity("VirtualLibrary.Api.Models.Shelf", b =>
                 {
                     b.Navigation("Placements");
+                });
+
+            modelBuilder.Entity("VirtualLibrary.Api.Models.UserBook", b =>
+                {
+                    b.Navigation("ReadRecords");
                 });
 
             modelBuilder.Entity("VirtualLibrary.Api.Models.Work", b =>

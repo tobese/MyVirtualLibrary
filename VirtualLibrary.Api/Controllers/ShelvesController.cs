@@ -63,7 +63,7 @@ public class ShelvesController : ControllerBase
 
         // Merge: any owned book not yet in a placement gets appended.
         var ownedBooks = await _db.UserBooks
-            .Where(ub => ub.UserId == UserId && ub.Status == BookStatus.Owned)
+            .Where(ub => ub.UserId == UserId && ub.IsOwned)
             .Include(ub => ub.Edition).ThenInclude(e => e.EditionAuthors).ThenInclude(ea => ea.Author)
             .Include(ub => ub.Edition).ThenInclude(e => e.Covers)
             .Include(ub => ub.Edition).ThenInclude(e => e.Work)
@@ -112,7 +112,7 @@ public class ShelvesController : ControllerBase
 
         // Validate that every referenced UserBook belongs to this user.
         var ownedIds = await _db.UserBooks
-            .Where(ub => ub.UserId == UserId && ub.Status == BookStatus.Owned)
+            .Where(ub => ub.UserId == UserId && ub.IsOwned)
             .Select(ub => ub.Id)
             .ToHashSetAsync(ct);
 

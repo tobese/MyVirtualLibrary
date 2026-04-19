@@ -35,11 +35,28 @@ namespace VirtualLibrary.Client.Services;
 [JsonSerializable(typeof(List<UserBookDto>))]
 [JsonSerializable(typeof(AddUserBookRequest))]
 [JsonSerializable(typeof(UpdateUserBookRequest))]
+[JsonSerializable(typeof(ReadRecordDto))]
+[JsonSerializable(typeof(List<ReadRecordDto>))]
+[JsonSerializable(typeof(AddReadRecordRequest))]
 // ── Shelf ────────────────────────────────────────────────────────────────────
 [JsonSerializable(typeof(ShelfDto))]
 [JsonSerializable(typeof(SaveShelfPlacementsRequest))]
+// ── Stats ─────────────────────────────────────────────────────────────────────
+[JsonSerializable(typeof(LibraryStatsDto))]
+[JsonSerializable(typeof(RankedItemDto))]
+[JsonSerializable(typeof(List<RankedItemDto>))]
+// ── Bulk import ──────────────────────────────────────────────────────────────
+[JsonSerializable(typeof(BulkImportRequest))]
+[JsonSerializable(typeof(BulkImportResponse))]
+[JsonSerializable(typeof(ImportRowResult))]
+[JsonSerializable(typeof(List<ImportRowResult>))]
+[JsonSerializable(typeof(ImportSummary))]
 // ── PKCE ─────────────────────────────────────────────────────────────────────
 [JsonSerializable(typeof(TokenExchangeRequest))]
+#if DEBUG
+// ── Dev login (DEBUG only — not compiled into Release/production builds) ─────
+[JsonSerializable(typeof(DevLoginRequest))]
+#endif
 internal sealed partial class AppJsonContext : JsonSerializerContext
 {
 }

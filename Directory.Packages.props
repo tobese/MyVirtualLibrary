@@ -12,5 +12,8 @@
     <PackageVersion Include="Xamarin.AndroidX.Activity" Version="1.12.2.1" />
     <PackageVersion Include="Xamarin.AndroidX.AppCompat" Version="1.7.1.2" />
     <PackageVersion Include="Xamarin.AndroidX.Compose.Runtime.Annotation.Jvm" Version="1.10.0.1" />
+    <!-- Force patched version to resolve NU1903 high-severity vulnerabilities:
+         GHSA-37gx-xxp4-5rgx and GHSA-w3x6-4m5h-cxqf -->
+    <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.5" />
   </ItemGroup>
 </Project>

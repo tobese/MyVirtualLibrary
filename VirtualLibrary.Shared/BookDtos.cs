@@ -40,19 +40,43 @@ public record WorkDto(
     List<string> Subjects
 );
 
+public record ReadRecordDto(
+    Guid Id,
+    DateTime DateRead,
+    string? Notes
+);
+
 public record UserBookDto(
     Guid Id,
     Guid EditionId,
     EditionDto Edition,
     BookStatus Status,
+    bool IsOwned,
     DateTime DateAdded,
     int? Rating,
-    string? Notes
+    string? Notes,
+    List<ReadRecordDto> ReadRecords
 );
 
-public record AddUserBookRequest(string Isbn, BookStatus Status = BookStatus.Owned);
+/// <summary>
+/// Adds a book to the library. Defaults to owned + want-to-read, the most
+/// common case when scanning or typing an ISBN.
+/// </summary>
+public record AddUserBookRequest(
+    string Isbn,
+    BookStatus Status = BookStatus.WantToRead,
+    bool IsOwned = true);
 
-public record UpdateUserBookRequest(BookStatus? Status, int? Rating, string? Notes);
+public record UpdateUserBookRequest(
+    BookStatus? Status,
+    bool? IsOwned,
+    int? Rating,
+    string? Notes);
+
+/// <summary>
+/// Records a single reading of a book. DateRead defaults to today when null.
+/// </summary>
+public record AddReadRecordRequest(DateTime? DateRead, string? Notes);
 
 public record IsbnLookupResponse(EditionDto Edition, WorkDto? Work);
 
@@ -83,3 +107,53 @@ public record ShelfDto(
 /// <see cref="UserBookIds"/> defines the new slot sequence (0-based).
 /// </summary>
 public record SaveShelfPlacementsRequest(List<Guid> UserBookIds);
+
+// ---- Bulk import ----
+
+public enum ImportRowStatus
+{
+    /// <summary>Book added to the user's library.</summary>
+    Added,
+    /// <summary>Book was already in the user's library (no change).</summary>
+    AlreadyInLibrary,
+    /// <summary>ISBN not found on OpenLibrary.</summary>
+    NotFound,
+    /// <summary>An unexpected error occurred for this row.</summary>
+    Error,
+}
+
+/// <summary>
+/// Request body for POST /api/import.
+/// ISBNs are plain strings (ISBN-10 or ISBN-13); blank lines and
+/// lines starting with '#' are stripped by the API.
+/// </summary>
+public record BulkImportRequest(
+    List<string> Isbns,
+    BookStatus DefaultStatus = BookStatus.WantToRead,
+    bool DefaultIsOwned = true);
+
+/// <summary>Per-row result returned by the bulk import endpoint.</summary>
+public record ImportRowResult(
+    string Isbn,
+    ImportRowStatus Status,
+    /// <summary>Title from the OpenLibrary record, if found.</summary>
+    string? Title,
+    /// <summary>
+    /// True when pre-existing OpenLibrary metadata (Edition / Work / Authors)
+    /// was updated because OpenLibrary reported a newer last_modified timestamp.
+    /// </summary>
+    bool DataRefreshed,
+    /// <summary>Human-readable detail, mainly populated for errors and skips.</summary>
+    string? Message);
+
+public record ImportSummary(
+    int Total,
+    int Added,
+    int AlreadyInLibrary,
+    int DataRefreshed,
+    int NotFound,
+    int Errors);
+
+public record BulkImportResponse(
+    List<ImportRowResult> Results,
+    ImportSummary Summary);

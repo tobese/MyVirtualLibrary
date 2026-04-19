@@ -21,11 +21,11 @@ public sealed partial class LibraryPage : Page
     {
         base.OnNavigatedTo(e);
 
-        // Show the Users admin entry-point only for admins.
+        // Show admin-only buttons for Admin / SuperAdmin.
         var role = _api.CurrentUser?.Role;
-        AdminButton.Visibility = (role == UserRole.Admin || role == UserRole.SuperAdmin)
-            ? Visibility.Visible
-            : Visibility.Collapsed;
+        var isAdmin = role == UserRole.Admin || role == UserRole.SuperAdmin;
+        AdminButton.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
+        StatsButton.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
 
         await ReloadAsync();
     }
@@ -69,17 +69,13 @@ public sealed partial class LibraryPage : Page
             return;
         }
 
-        var status = (StatusCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() switch
-        {
-            "WantToRead" => BookStatus.WantToRead,
-            "Read"       => BookStatus.Read,
-            _            => BookStatus.Owned,
-        };
+        var status = StatusCombo.SelectedIndex == 1 ? BookStatus.Read : BookStatus.WantToRead;
+        var isOwned = OwnedCheck.IsChecked == true;
 
         try
         {
             StatusText.Text = $"Adding {isbn}…";
-            var added = await _api.AddBookAsync(isbn, status);
+            var added = await _api.AddBookAsync(isbn, status, isOwned);
             if (added == null)
             {
                 StatusText.Text = "ISBN not found.";
@@ -109,6 +105,12 @@ public sealed partial class LibraryPage : Page
 
     private void OnOpenShelf(object sender, RoutedEventArgs e)
         => this.Frame.Navigate(typeof(ShelfPage));
+
+    private void OnOpenImport(object sender, RoutedEventArgs e)
+        => this.Frame.Navigate(typeof(ImportPage));
+
+    private void OnOpenStats(object sender, RoutedEventArgs e)
+        => this.Frame.Navigate(typeof(StatsPage));
 
     private void OnSignOut(object sender, RoutedEventArgs e)
     {

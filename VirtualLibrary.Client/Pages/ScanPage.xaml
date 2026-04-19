@@ -34,9 +34,9 @@
             <TextBox x:Name="IsbnBox" PlaceholderText="ISBN-10 or ISBN-13"
                      InputScope="Number" />
 
-            <ComboBox x:Name="StatusCombo" HorizontalAlignment="Stretch" SelectedIndex="1">
-                <ComboBoxItem Content="WantToRead" />
-                <ComboBoxItem Content="Owned" />
+            <CheckBox x:Name="OwnedCheck" Content="I own this book" IsChecked="True" />
+            <ComboBox x:Name="StatusCombo" HorizontalAlignment="Stretch" SelectedIndex="0">
+                <ComboBoxItem Content="Want to read" />
                 <ComboBoxItem Content="Read" />
             </ComboBox>
 

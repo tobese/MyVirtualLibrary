@@ -1,6 +1,9 @@
 <Project Sdk="Uno.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net10.0-browserwasm;net10.0-android;net10.0-maccatalyst</TargetFrameworks>
+    <!-- Default to WASM only so plain `dotnet build` is fast.
+         Pass -p:AllTargets=true to build all platforms. -->
+    <TargetFrameworks Condition="'$(AllTargets)' != 'true'">net10.0-browserwasm</TargetFrameworks>
+    <TargetFrameworks Condition="'$(AllTargets)' == 'true'">net10.0-browserwasm;net10.0-android;net10.0-maccatalyst</TargetFrameworks>
 
     <OutputType>Exe</OutputType>
     <UnoSingleProject>true</UnoSingleProject>
@@ -64,20 +67,36 @@
   <PropertyGroup Condition="$(TargetFramework.Contains('maccatalyst'))">
     <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
     <DefineConstants>$(DefineConstants);USE_AVFOUNDATION_SCANNER</DefineConstants>
-    <!-- KNOWN ISSUE: the .NET MacCatalyst workload (26.2.10233) was built for
-         Xcode 26.3 and is not ABI-compatible with Xcode 26.4.1. Setting
-         ValidateXcodeVersion=false bypasses the guard but the linker will still
-         fail with ICU v77 undefined-symbol errors (see
-         https://aka.ms/xcode-requirement). Resolution: either install Xcode 26.3
-         from developer.apple.com/download/more or wait for Microsoft to ship a
-         MacCatalyst workload targeting Xcode 26.4.x and re-run
-         `sudo dotnet workload update`. -->
+    <!-- KNOWN ISSUE (2026-04-18): the .NET 10 MacCatalyst workload (26.2.10233)
+         produces ICU v77 undefined-symbol linker errors at the native linking
+         stage regardless of Xcode version (confirmed with both 26.3 and 26.4.1).
+         Root cause: the workload's static libs reference versioned ICU symbols
+         (e.g. _u_errorName_77) via <initial-undefines>, but Apple's Catalyst SDK
+         does not export ICU with that version suffix. InvariantGlobalization=true
+         (below) does not help because the symbols are demanded by the workload's
+         own native linker config, not by managed .NET globalization code.
+         - `sudo dotnet workload update` keeps the pack at 26.2.10233 (no fix yet).
+         - The .NET 9 workload received a Xcode 26.3 servicing release (9.0.313)
+           that resolves this, but downgrading the project is not practical given
+           Uno.Sdk 6.5.31 targets .NET 10.
+         - Nightly builds may have a fix earlier:
+             sudo dotnet workload update \
+               -source https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet10/nuget/v3/index.json
+           (requires "allowPrerelease": true in global.json temporarily)
+         - Resolution: re-run "sudo dotnet workload update" periodically until
+           the pack version advances past 26.2.10233, then remove the
+           InvariantGlobalization workaround below. -->
     <!-- Point the .NET-for-iOS / MacCatalyst SDK at our Info.plist + Entitlements
          so the signed .app declares camera access. Without
          NSCameraUsageDescription, -[AVCaptureDevice requestAccessForMediaType:]
          hard-crashes the app on first prompt. -->
     <ApplicationPlistFile>Platforms/MacCatalyst/Info.plist</ApplicationPlistFile>
     <CodesignEntitlements>Platforms/MacCatalyst/Entitlements.plist</CodesignEntitlements>
+    <!-- Workaround for ICU v77 undefined-symbol linker errors with MacCatalyst
+         workload 26.2.10233. InvariantGlobalization bypasses the ICU dependency
+         entirely. Culture-sensitive operations fall back to invariant culture,
+         which is acceptable for this app. Remove once the workload is updated. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
 </Project>

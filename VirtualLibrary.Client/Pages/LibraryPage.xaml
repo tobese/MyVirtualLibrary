@@ -20,15 +20,20 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <TextBlock Text="My Library" FontSize="28" FontWeight="SemiBold"
                        VerticalAlignment="Center" />
             <Button Grid.Column="1" Content="Scan" Click="OnOpenScan" />
             <Button Grid.Column="2" Content="Shelf" Click="OnOpenShelf" />
-            <Button Grid.Column="3" x:Name="AdminButton" Content="Users"
+            <Button Grid.Column="3" Content="Import" Click="OnOpenImport" />
+            <Button Grid.Column="4" x:Name="AdminButton" Content="Users"
                     Click="OnOpenUserManagement" Visibility="Collapsed" />
-            <Button Grid.Column="4" Content="Refresh" Click="OnRefresh" />
-            <Button Grid.Column="5" Content="Sign out" Click="OnSignOut" />
+            <Button Grid.Column="5" x:Name="StatsButton" Content="Stats"
+                    Click="OnOpenStats" Visibility="Collapsed" />
+            <Button Grid.Column="6" Content="Refresh" Click="OnRefresh" />
+            <Button Grid.Column="7" Content="Sign out" Click="OnSignOut" />
         </Grid>
 
         <!-- Add book -->
@@ -37,15 +42,17 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <TextBox x:Name="IsbnBox" PlaceholderText="Enter ISBN-10 or ISBN-13"
                      KeyDown="OnIsbnKeyDown" />
-            <ComboBox Grid.Column="1" x:Name="StatusCombo" SelectedIndex="1">
-                <ComboBoxItem Content="WantToRead" />
-                <ComboBoxItem Content="Owned" />
+            <CheckBox Grid.Column="1" x:Name="OwnedCheck" Content="Owned" IsChecked="True"
+                      VerticalAlignment="Center" />
+            <ComboBox Grid.Column="2" x:Name="StatusCombo" SelectedIndex="0">
+                <ComboBoxItem Content="Want to read" />
                 <ComboBoxItem Content="Read" />
             </ComboBox>
-            <Button Grid.Column="2" Content="Add" Click="OnAddBook" />
+            <Button Grid.Column="3" Content="Add" Click="OnAddBook" />
         </Grid>
 
         <!-- List -->

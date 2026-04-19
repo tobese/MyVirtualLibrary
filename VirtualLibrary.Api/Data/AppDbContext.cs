@@ -17,6 +17,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<EditionAuthor> EditionAuthors => Set<EditionAuthor>();
     public DbSet<Cover> Covers => Set<Cover>();
     public DbSet<UserBook> UserBooks => Set<UserBook>();
+    public DbSet<ReadRecord> ReadRecords => Set<ReadRecord>();
     public DbSet<Shelf> Shelves => Set<Shelf>();
     public DbSet<ShelfPlacement> ShelfPlacements => Set<ShelfPlacement>();
 
@@ -93,6 +94,15 @@ public class AppDbContext : IdentityDbContext<AppUser>
                   .WithMany()
                   .HasForeignKey(ub => ub.EditionId)
                   .OnDelete(DeleteBehavior.Restrict);
+            entity.HasMany(ub => ub.ReadRecords)
+                  .WithOne(r => r.UserBook)
+                  .HasForeignKey(r => r.UserBookId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ReadRecord>(entity =>
+        {
+            entity.HasIndex(r => r.UserBookId);
         });
 
         builder.Entity<Shelf>(entity =>

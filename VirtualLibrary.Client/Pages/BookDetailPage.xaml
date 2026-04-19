@@ -27,10 +27,14 @@
                 <TextBlock x:Name="IsbnText" Opacity="0.7" />
                 <TextBlock x:Name="DimensionsText" Opacity="0.7" />
 
-                <TextBlock Text="Status" FontWeight="SemiBold" Margin="0,12,0,0" />
+                <!-- Ownership (independent of reading state) -->
+                <TextBlock Text="Ownership" FontWeight="SemiBold" Margin="0,12,0,0" />
+                <CheckBox x:Name="OwnedCheck" Content="I own this book" />
+
+                <!-- Reading status -->
+                <TextBlock Text="Reading status" FontWeight="SemiBold" Margin="0,4,0,0" />
                 <ComboBox x:Name="StatusCombo" HorizontalAlignment="Stretch">
-                    <ComboBoxItem Content="WantToRead" />
-                    <ComboBoxItem Content="Owned" />
+                    <ComboBoxItem Content="Want to read" />
                     <ComboBoxItem Content="Read" />
                 </ComboBox>
 
@@ -41,6 +45,19 @@
                 <TextBlock Text="Notes" FontWeight="SemiBold" Margin="0,12,0,0" />
                 <TextBox x:Name="NotesBox" AcceptsReturn="True" TextWrapping="Wrap"
                          MinHeight="120" />
+
+                <!-- Read history -->
+                <Grid Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Read history" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Content="+ Log a reading" Click="OnAddRead" />
+                </Grid>
+
+                <!-- Read records are populated dynamically in code-behind -->
+                <StackPanel x:Name="ReadsPanel" Spacing="8" />
             </StackPanel>
         </ScrollViewer>
 

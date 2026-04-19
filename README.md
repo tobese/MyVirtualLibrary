@@ -121,6 +121,9 @@ All endpoints return JSON. All `/api/*` routes require `Authorization: Bearer <J
 - `GET  /api/shelves/default`         — load-or-create default shelf (unplaced owned books merged in)
 - `PUT  /api/shelves/{id}/placements` — `{ "userBookIds": ["<uuid>", …] }` replaces all placements in slot order
 - `POST /api/auth/exchange`           — `{ "provider", "code", "codeVerifier", "redirectUri" }` PKCE code exchange (preferred over `/login`)
+- `POST /api/import`                  — bulk-import up to 500 ISBNs; fetches/refreshes metadata from OpenLibrary and adds books to the calling user's library. Body: `{ "isbns": ["…"], "defaultStatus": 0|1|2, "defaultIsOwned": true|false }`
+- `GET  /api/stats`                   — library-wide statistics (Admin / SuperAdmin only): catalogue counts, user-book aggregates, top authors, top subjects, active member count
+- `POST /api/auth/dev-login?persona=<name>` — **Debug builds only**; issues a real JWT for a named test persona without credentials. Personas: `superadmin`, `admin`, `member`, `pending`, `suspended`. Returns 404 in non-Development environments even if compiled as Debug.
 Enum reference: `BookStatus 0=WantToRead, 1=Owned, 2=Read`; `UserRole 0=User, 1=Admin, 2=SuperAdmin`; `UserStatus 0=PendingApproval, 1=Active, 2=Rejected, 3=Suspended`.
 ## OAuth setup
 External sign-in (Google / Apple) requires credentials from each provider's developer console **and** public client IDs baked into the client app. No secrets are committed to the repo.
@@ -202,3 +205,7 @@ See `docs/er-diagram.md` for the data model. Plan progress:
 - [x] Virtual shelf: drag/drop reorder (`ListView` `CanReorderItems`) + physical-dimension spine widths + `ShelvesController` (load-or-create default shelf, batch-replace placements)
 - [x] Production OAuth wiring — `ExternalTokenValidatorFactory` (Google via `GoogleJsonWebSignature`, Apple via OIDC discovery + JWKS), `OAuthConfig` for client IDs, configurable via user secrets / env vars; implicit flow wired end-to-end (PKCE upgrade tracked in issue #5)
 - [x] Trim-safe WASM — `AppJsonContext` source-generated `JsonSerializerContext` + all `ApiClient` call-sites use `JsonTypeInfo<T>` overloads; zero IL2026 warnings on Release WASM build
+- [x] Read record tracking — `ReadRecord` entity (start/finish dates) linked to `UserBook`; `IsOwned` flag added to `UserBook`; `AddReadRecordsAndIsOwned` migration
+- [x] Bulk import — `POST /api/import` accepts up to 500 ISBNs, fetches/refreshes OpenLibrary metadata, adds books to the user's library in one request; `BulkImportService` + `ImportController` + `ImportPage` in the client
+- [x] Stats — `GET /api/stats` (Admin+) returns catalogue counts, user-book aggregates (owned vs wishlist, read vs unread, total read records), top-10 authors/subjects, active member count; `StatsPage` in the client
+- [x] Dev auth bypass — `DevAuthController` (`#if DEBUG` + `IsDevelopment()` double-guard) issues real JWTs for named personas (`superadmin`, `admin`, `member`, `pending`, `suspended`) without OAuth; `DevLoginPage` in the client
