@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using VirtualLibrary.Api.Data;
 using VirtualLibrary.Api.Models;
+using VirtualLibrary.Shared;
 
 namespace VirtualLibrary.Api.Services;
 
@@ -21,6 +22,13 @@ public interface IOpenLibraryClient
     /// Returns the edition and a flag indicating whether any metadata was refreshed.
     /// </summary>
     Task<(Edition? Edition, bool DataRefreshed)> FetchAndSyncAsync(string isbn, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns the current trending works from OpenLibrary for <paramref name="period"/>
+    /// ("daily" or "weekly"). Results are cached for 1 hour.
+    /// Where a trending work already exists in the local database, <see cref="TrendingWorkDto.LocalWorkId"/> is populated.
+    /// </summary>
+    Task<TrendingResultDto> GetTrendingAsync(string period, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -138,6 +146,62 @@ public class OpenLibraryClient : IOpenLibraryClient
         }
 
         return (existing, dataRefreshed);
+    }
+
+    // ── Trending ──────────────────────────────────────────────────────────────
+
+    public async Task<TrendingResultDto> GetTrendingAsync(string period, CancellationToken ct = default)
+    {
+        period = period is "daily" or "weekly" ? period : "weekly";
+        var cacheKey = $"ol:trending:{period}";
+        if (_cache.TryGetValue<TrendingResultDto>(cacheKey, out var cached) && cached != null)
+            return cached;
+
+        var json = await GetJsonAsync($"{BaseUrl}/trending/{period}.json", ct);
+        if (json == null) return new TrendingResultDto(period, new());
+
+        var rawWorks = json.RootElement.TryGetProperty("works", out var worksEl)
+                       && worksEl.ValueKind == JsonValueKind.Array
+            ? worksEl.EnumerateArray().Take(20).ToList()
+            : new List<JsonElement>();
+
+        // Batch-match against local DB in a single query
+        var olIds = rawWorks
+            .Select(w => w.TryGetProperty("key", out var k) ? Last(k.GetString()) : null)
+            .OfType<string>()
+            .ToList();
+
+        var localByOlId = olIds.Count > 0
+            ? (await _db.Works
+                .Where(w => w.OpenLibraryId != null && olIds.Contains(w.OpenLibraryId))
+                .Select(w => new { w.Id, w.OpenLibraryId })
+                .ToListAsync(ct))
+              .ToDictionary(w => w.OpenLibraryId!, w => w.Id)
+            : new Dictionary<string, Guid>();
+
+        var works = new List<TrendingWorkDto>(rawWorks.Count);
+        foreach (var w in rawWorks)
+        {
+            var key = w.TryGetProperty("key", out var k) ? k.GetString() : null;
+            if (key == null) continue;
+
+            var olId = Last(key);
+            var title = w.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
+            var authors = w.TryGetProperty("author_name", out var an) && an.ValueKind == JsonValueKind.Array
+                ? an.EnumerateArray().Select(a => a.GetString() ?? "").Where(s => !string.IsNullOrEmpty(s)).ToList()
+                : new List<string>();
+            string? coverUrl = null;
+            if (w.TryGetProperty("cover_i", out var ci) && ci.ValueKind == JsonValueKind.Number)
+                coverUrl = $"{CoverBase}/b/id/{ci.GetInt64()}-M.jpg";
+
+            Guid? localId = olId != null && localByOlId.TryGetValue(olId, out var lwId) ? lwId : null;
+
+            works.Add(new TrendingWorkDto(OlKey: key, Title: title, Authors: authors, CoverUrl: coverUrl, LocalWorkId: localId));
+        }
+
+        var result = new TrendingResultDto(period, works);
+        _cache.Set(cacheKey, result, TimeSpan.FromHours(1));
+        return result;
     }
 
     // ── Build helpers ─────────────────────────────────────────────────────────

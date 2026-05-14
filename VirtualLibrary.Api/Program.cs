@@ -13,7 +13,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Database
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        o => o.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
 
 // Identity
 builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
@@ -75,8 +77,16 @@ builder.Services.AddScoped<ITokenExchangeService, TokenExchangeService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<IOpenLibraryClient, OpenLibraryClient>();
 
+// NYT Books API client (bestseller lists)
+builder.Services.AddHttpClient<INytBooksService, NytBooksService>();
+
 // Bulk import
 builder.Services.AddScoped<IBulkImportService, BulkImportService>();
+
+#if DEBUG
+// Mock data seeder — creates realistic users + fetches books from OpenLibrary Search API
+builder.Services.AddScoped<MockDataSeeder>();
+#endif
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
@@ -86,7 +96,9 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins(builder.Configuration["AllowedOrigins"] ?? "http://localhost:8080")
+        var origins = (builder.Configuration["AllowedOrigins"] ?? "http://localhost:8080")
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        policy.WithOrigins(origins)
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -108,6 +120,19 @@ if (app.Environment.IsDevelopment())
 #if DEBUG
     // Seed one test persona per role/status combination for use with the dev-login panel.
     await SeedDevPersonasAsync(userManager);
+
+    // Seed mock library users and populate their libraries with real books from OpenLibrary.
+    try
+    {
+        var mockSeeder = scope.ServiceProvider.GetRequiredService<MockDataSeeder>();
+        await mockSeeder.SeedAsync();
+    }
+    catch (Exception ex)
+    {
+        var log = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        log.LogError(ex, "MockDataSeeder failed — app will continue without mock data. " +
+            "If columns are missing, wipe the volume: docker compose down -v && docker compose up --build");
+    }
 #endif
 
     app.MapOpenApi();
