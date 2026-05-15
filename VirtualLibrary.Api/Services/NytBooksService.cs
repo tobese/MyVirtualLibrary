@@ -14,6 +14,18 @@ public class NytBooksService : INytBooksService
 {
     private const string BaseUrl = "https://api.nytimes.com/svc/books/v3";
 
+    // Fallback used when the /lists/names.json discovery endpoint is unavailable.
+    private static readonly IReadOnlyList<string> KnownLists =
+    [
+        "hardcover-fiction",
+        "hardcover-nonfiction",
+        "combined-print-and-e-book-fiction",
+        "combined-print-and-e-book-nonfiction",
+        "young-adult-hardcover",
+        "childrens-middle-grade-hardcover",
+        "graphic-books-and-manga",
+    ];
+
     private readonly HttpClient _http;
     private readonly IMemoryCache _cache;
     private readonly string? _apiKey;
@@ -89,19 +101,26 @@ public class NytBooksService : INytBooksService
         try
         {
             using var resp = await _http.GetAsync(url, ct);
-            if (!resp.IsSuccessStatusCode) return Array.Empty<string>();
+            if (resp.IsSuccessStatusCode)
+            {
+                using var stream = await resp.Content.ReadAsStreamAsync(ct);
+                using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
 
-            using var stream = await resp.Content.ReadAsStreamAsync(ct);
-            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+                var names = doc.RootElement.GetProperty("results")
+                    .EnumerateArray()
+                    .Select(e => e.TryGetProperty("list_name_encoded", out var n) ? n.GetString() : null)
+                    .OfType<string>()
+                    .ToList();
 
-            var names = doc.RootElement.GetProperty("results")
-                .EnumerateArray()
-                .Select(e => e.TryGetProperty("list_name_encoded", out var n) ? n.GetString() : null)
-                .OfType<string>()
-                .ToList();
+                _cache.Set(cacheKey, (IReadOnlyList<string>)names, TimeSpan.FromHours(24));
+                return names;
+            }
 
-            _cache.Set(cacheKey, (IReadOnlyList<string>)names, TimeSpan.FromHours(24));
-            return names;
+            // /lists/names.json is deprecated on some key tiers — fall back to curated list.
+            _log.LogInformation(
+                "NYT /lists/names.json → {Status}; using hardcoded list fallback", resp.StatusCode);
+            _cache.Set(cacheKey, KnownLists, TimeSpan.FromHours(24));
+            return KnownLists;
         }
         catch (Exception ex)
         {

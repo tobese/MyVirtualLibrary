@@ -31,6 +31,7 @@ services:
       Jwt__Issuer: "VirtualLibrary"
       Jwt__Audience: "VirtualLibrary"
       AllowedOrigins: "http://localhost:5000,http://localhost:8080"
+      NytBooks__ApiKey: ${NytBooks__ApiKey:-}
     ports:
       - "5179:8080"
 

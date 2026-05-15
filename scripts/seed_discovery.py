@@ -34,7 +34,7 @@ CHUNK_SIZE  = 500   # max ISBNs per import request
 
 # ── HTTP helpers ──────────────────────────────────────────────────────────────
 
-def _req(url, *, method="GET", body=None, token=None):
+def _req(url, *, method="GET", body=None, token=None, timeout=60):
     data = json.dumps(body).encode() if body is not None else None
     req  = urllib.request.Request(url, data=data, method=method)
     req.add_header("Accept", "application/json")
@@ -43,7 +43,7 @@ def _req(url, *, method="GET", body=None, token=None):
     if token:
         req.add_header("Authorization", f"Bearer {token}")
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read())
     except urllib.error.HTTPError as e:
         snippet = e.read().decode(errors="replace")[:300]
@@ -54,8 +54,8 @@ def api_get(api, path, token):
     return _req(f"{api}{path}", token=token)
 
 
-def api_post(api, path, body, token):
-    return _req(f"{api}{path}", method="POST", body=body, token=token)
+def api_post(api, path, body, token, timeout=60):
+    return _req(f"{api}{path}", method="POST", body=body, token=token, timeout=timeout)
 
 
 def ol_get(path):
@@ -172,7 +172,7 @@ def import_isbns(api, token, isbns):
                 "isbns":          chunk,
                 "defaultStatus":  0,      # WantToRead
                 "defaultIsOwned": False,
-            }, token)
+            }, token, timeout=600)
         except RuntimeError as e:
             print(f"FAILED: {e}")
             totals["errors"] += len(chunk)
