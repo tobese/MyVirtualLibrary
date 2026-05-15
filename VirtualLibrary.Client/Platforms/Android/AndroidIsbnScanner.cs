@@ -45,7 +45,7 @@ public sealed class AndroidIsbnScanner : IIsbnScanner
         try
         {
             var barcode = await _barcodes.ScanAsync(options, ct).ConfigureAwait(true);
-            return barcode?.Text;
+            return barcode?.Value;
         }
         catch (Plugin.Scanner.Core.Exceptions.ScanException)
         {

@@ -11,33 +11,15 @@ namespace VirtualLibrary.Api.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Stores the last_modified timestamp returned by OpenLibrary so that
-            // the bulk import service can skip re-writing records that haven't changed.
-            migrationBuilder.AddColumn<DateTime>(
-                name: "OlLastModified",
-                table: "Works",
-                type: "timestamp with time zone",
-                nullable: true);
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "OlLastModified",
-                table: "Editions",
-                type: "timestamp with time zone",
-                nullable: true);
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "OlLastModified",
-                table: "Authors",
-                type: "timestamp with time zone",
-                nullable: true);
+            // No-op: folded into InitialCreate (20260417143047_InitialCreate.cs).
+            // Kept so existing databases that already have this migration ID in
+            // __EFMigrationsHistory can continue running without errors.
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(name: "OlLastModified", table: "Works");
-            migrationBuilder.DropColumn(name: "OlLastModified", table: "Editions");
-            migrationBuilder.DropColumn(name: "OlLastModified", table: "Authors");
+            // No-op: see Up().
         }
     }
 }

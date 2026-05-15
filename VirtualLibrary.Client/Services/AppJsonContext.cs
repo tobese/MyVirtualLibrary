@@ -45,6 +45,8 @@ namespace VirtualLibrary.Client.Services;
 [JsonSerializable(typeof(LibraryStatsDto))]
 [JsonSerializable(typeof(RankedItemDto))]
 [JsonSerializable(typeof(List<RankedItemDto>))]
+// ── Refresh ──────────────────────────────────────────────────────────────────
+[JsonSerializable(typeof(RefreshBookResponse))]
 // ── Bulk import ──────────────────────────────────────────────────────────────
 [JsonSerializable(typeof(BulkImportRequest))]
 [JsonSerializable(typeof(BulkImportResponse))]

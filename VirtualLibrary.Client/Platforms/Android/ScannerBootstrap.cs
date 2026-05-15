@@ -6,7 +6,6 @@
 // This avoids pulling the full Uno.Extensions hosting/navigation stack into an
 // app that uses direct Frame.Navigate navigation.
 
-using System;
 using Microsoft.Extensions.DependencyInjection;
 using Plugin.Scanner.Core.Scanners;
 using Plugin.Scanner.Hosting;
@@ -15,25 +14,29 @@ namespace VirtualLibrary.Client.Platforms.Android;
 
 internal static class ScannerBootstrap
 {
-    // Lazy<T> gives free thread-safety; the scanner is resolved at most once.
     private static readonly Lazy<IBarcodeScanner> _lazy = new(Create, isThreadSafe: true);
 
-    /// <summary>
-    /// Returns the shared <see cref="IBarcodeScanner"/> instance, creating it on
-    /// first call. Must be called after the Uno activity has been started (i.e.
-    /// not at static-initialisation time).
-    /// </summary>
     public static IBarcodeScanner Resolve() => _lazy.Value;
 
     private static IBarcodeScanner Create()
     {
         var services = new ServiceCollection();
-        // Plugin.Scanner.Uno.Android.CurrentActivity is the ready-made Uno
-        // implementation of Plugin.Scanner.Android.ICurrentActivity; it reads the
-        // active activity from the Uno runtime so no explicit Activity reference
-        // needs to be wired here.
-        services.AddCurrentActivity<Plugin.Scanner.Uno.Android.CurrentActivity>();
+        // Register a thin ICurrentActivity wrapper that reads the active Activity
+        // from Uno's ContextHelper. Plugin.Scanner.Uno.Android.CurrentActivity is
+        // internal, so we provide our own equivalent rather than referencing it.
+        services.AddCurrentActivity<UnoCurrentActivity>();
         services.AddScanner();
         return services.BuildServiceProvider().GetRequiredService<IBarcodeScanner>();
+    }
+
+    /// <summary>
+    /// Implements <see cref="Plugin.Scanner.Android.ICurrentActivity"/> by delegating
+    /// to <see cref="Uno.UI.ContextHelper.Current"/>, which always returns the
+    /// foreground Uno activity on Android.
+    /// </summary>
+    private sealed class UnoCurrentActivity : Plugin.Scanner.Android.ICurrentActivity
+    {
+        public global::Android.App.Activity Activity =>
+            (global::Android.App.Activity)Uno.UI.ContextHelper.Current;
     }
 }

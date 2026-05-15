@@ -1,6 +1,12 @@
 # syntax=docker/dockerfile:1
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+
+# BUILD_CONFIGURATION controls #if DEBUG blocks.
+# Pass --build-arg BUILD_CONFIGURATION=Debug (or set in docker-compose) for dev;
+# leave at Release for production images.
+ARG BUILD_CONFIGURATION=Release
+
 WORKDIR /src
 
 # Solution-level MSBuild + package manifests (copy first for layer caching)
@@ -15,7 +21,7 @@ COPY VirtualLibrary.Shared/ VirtualLibrary.Shared/
 COPY VirtualLibrary.Api/    VirtualLibrary.Api/
 
 RUN dotnet publish VirtualLibrary.Api/VirtualLibrary.Api.csproj \
-    -c Release \
+    -c ${BUILD_CONFIGURATION} \
     -o /app/publish \
     /p:UseAppHost=false
 

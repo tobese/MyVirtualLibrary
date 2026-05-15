@@ -154,6 +154,53 @@ public sealed partial class BookDetailPage : Page
         }
     }
 
+    // ── Refresh from OpenLibrary ───────────────────────────────────────────────
+
+    private async void OnRefreshFromOl(object sender, RoutedEventArgs e)
+    {
+        if (_book == null) return;
+
+        RefreshOlButton.IsEnabled = false;
+        StatusText.Text = "Checking OpenLibrary…";
+
+        try
+        {
+            var result = await _api.RefreshBookFromOlAsync(_book.Id);
+            if (result == null) { StatusText.Text = "Book not found."; return; }
+
+            _book = result.Book;
+
+            TitleText.Text     = _book.Edition.Title;
+            AuthorsText.Text   = _book.Edition.Authors.Count > 0
+                ? "by " + string.Join(", ", _book.Edition.Authors.Select(a => a.Name))
+                : "";
+            PublisherText.Text = _book.Edition.Publisher is { Length: > 0 } p
+                ? $"Publisher: {p}" + (_book.Edition.PublishDate is { Length: > 0 } d ? $" · {d}" : "")
+                : "";
+            IsbnText.Text       = "ISBN: " + (_book.Edition.Isbn13 ?? _book.Edition.Isbn10 ?? "—");
+            DimensionsText.Text = _book.Edition.PhysicalDimensions is { Length: > 0 } dim
+                ? $"Dimensions: {dim}" : "";
+
+            StatusText.Text = result.DataRefreshed ? "Updated from OpenLibrary." : "Already up to date.";
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"Refresh failed: {ex.Message}";
+        }
+        finally
+        {
+            RefreshOlButton.IsEnabled = true;
+        }
+    }
+
+    // ── Back cover photo ───────────────────────────────────────────────────────
+
+    private void OnPhotoBackCover(object sender, RoutedEventArgs e)
+    {
+        if (_book == null) return;
+        this.Frame.Navigate(typeof(BackCoverPhotoPage), _book);
+    }
+
     // ── Navigation ─────────────────────────────────────────────────────────
 
     private void OnBack(object sender, RoutedEventArgs e)

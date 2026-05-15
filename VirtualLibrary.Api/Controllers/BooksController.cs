@@ -129,6 +129,35 @@ public class BooksController : ControllerBase
         return NoContent();
     }
 
+    // ── Refresh from OpenLibrary ──────────────────────────────────────────────
+
+    /// <summary>
+    /// POST /api/books/{id}/refresh — re-fetches the edition from OpenLibrary
+    /// and updates local metadata if OL reports a newer last_modified timestamp.
+    /// </summary>
+    [HttpPost("{id:guid}/refresh")]
+    public async Task<IActionResult> Refresh(Guid id, CancellationToken ct)
+    {
+        var ub = await _db.UserBooks
+            .Include(x => x.Edition)
+            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == UserId, ct);
+        if (ub == null) return NotFound();
+
+        var isbn = ub.Edition.Isbn13 ?? ub.Edition.Isbn10;
+        if (isbn == null) return BadRequest(new { error = "No ISBN on this edition" });
+
+        var (_, dataRefreshed) = await _ol.FetchAndSyncAsync(isbn, ct);
+
+        var full = await _db.UserBooks
+            .Include(x => x.Edition).ThenInclude(e => e.EditionAuthors).ThenInclude(ea => ea.Author)
+            .Include(x => x.Edition).ThenInclude(e => e.Covers)
+            .Include(x => x.Edition).ThenInclude(e => e.Work)
+            .Include(x => x.ReadRecords)
+            .FirstAsync(x => x.Id == id, ct);
+
+        return Ok(new RefreshBookResponse(full.ToDto(), dataRefreshed));
+    }
+
     // ── Read records ──────────────────────────────────────────────────────────
 
     /// <summary>GET /api/books/{id}/reads — list all read records for a book.</summary>

@@ -25,8 +25,14 @@ public class ApiClient
     private static string GetBaseUri()
     {
 #if __WASM__
-        // In WASM, use the same origin; nginx reverse-proxies /api/* to the backend.
+#if DEBUG
+        // In WASM dev builds the app is served from the Uno dev server (localhost:5000)
+        // while the API runs separately on localhost:5179 — point directly at it.
+        return "http://localhost:5179/";
+#else
+        // In production, nginx reverse-proxies /api/* to the backend on the same origin.
         return Uno.Foundation.WebAssemblyRuntime.InvokeJS("window.location.origin") + "/";
+#endif
 #elif __ANDROID__
         // 10.0.2.2 is the Android emulator's loopback alias for the host machine.
         return "http://10.0.2.2:5179";
@@ -220,6 +226,14 @@ public class ApiClient
     {
         var response = await _http.DeleteAsync($"/api/books/{id}");
         response.EnsureSuccessStatusCode();
+    }
+
+    public async Task<RefreshBookResponse?> RefreshBookFromOlAsync(Guid id)
+    {
+        var response = await _http.PostAsync($"/api/books/{id}/refresh", content: null);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync(AppJsonContext.Default.RefreshBookResponse);
     }
 
 #if DEBUG

@@ -112,6 +112,15 @@ The SuperAdmin account seeded in all `Development` environments:
 Use this on the **Sign in with password** form. The dev personas and mock users are intended for use with the **Dev Login** panel (Debug builds only) — see `POST /api/auth/dev-login` below.
 
 ## Useful commands
+A `Makefile` at the repo root wraps the most common invocations:
+```bash
+make sony     # dotnet run → Android arm64 (fast-deploys to a connected device)
+make android  # dotnet build → Android APK without deploying (CI / release prep)
+make wasm     # dotnet run → WASM with hot reload
+make api      # dotnet run → ASP.NET Core API
+make clean    # dotnet clean client + API
+```
+
 ```bash
 # Regenerate EF Core migration
 dotnet ef migrations add <Name> --project VirtualLibrary.Api --output-dir Migrations
@@ -239,6 +248,14 @@ Catalyst camera access requires two things to be bundled into the signed `.app`:
 
 Both are already wired via the `maccatalyst` PropertyGroup / ItemGroup in `VirtualLibrary.Client.csproj`; no further manifest edits are needed.
 
+## Back cover camera (Android)
+`BackCoverPhotoPage` lets users photograph the back cover of a book for their own reference. The platform abstraction mirrors the barcode scanner pattern:
+
+- **Android** — `AndroidBackCoverCamera` launches `CameraWithRulersActivity`, a custom `Activity` that shows a live `Camera2` preview with a `RulerOverlayView` (scale guide drawn over the viewfinder). The captured JPEG is written to app-external storage and the absolute path returned to the page.
+- **WASM / Mac Catalyst** — `NullBackCoverCamera` (`IsSupported = false`); the capture button is disabled; no third-party dependency.
+
+No API endpoint backs this feature — photos stay on-device. The `IBackCoverCamera` abstraction (`Services/IBackCoverCamera.cs`) is the extension point if cloud upload is added later.
+
 ## Troubleshooting
 - **`docker compose up` fails with `Name or service not known`** — Docker's internal DNS lost the `db` hostname. Run `docker compose down && docker compose up --build` to recreate the network.
 - **`column X does not exist` at startup** — the EF Core migration history table contains entries for migrations that never actually ran DDL against the database (phantom migrations). Fix: wipe the volume so `InitialCreate` can run the full schema from scratch: `docker compose down -v --remove-orphans && docker compose up --build`. The three original migrations (`InitialCreate`, `AddReadRecordsAndIsOwned`, `AddOlLastModified`) have been squashed — `InitialCreate` now contains the complete schema; the later two are no-ops kept only so existing history entries don't break the runner.
@@ -266,11 +283,11 @@ See `docs/er-diagram.md` for the data model. Plan progress:
 - [x] ASP.NET Core API: Auth, Users, Books, Lookup controllers; SuperAdmin seeding
 - [x] OpenLibrary client with DB + memory cache and rate limiting
 - [x] Docker Compose + multi-stage API Dockerfile with `BUILD_CONFIGURATION` arg (Debug in compose, Release default)
-- [x] Uno client pages: Login, PendingApproval, Scan, Library, BookDetail, Shelf, UserManagement
+- [x] Uno client pages: Login, PendingApproval, Scan, Library, BookDetail, Shelf, UserManagement, BackCoverPhoto
 - [x] Android ISBN scanner — `IIsbnScanner` abstraction + `AndroidIsbnScanner` (live `Plugin.Scanner.Uno` path) + `AndroidManifest.xml` permissions + `ScannerBootstrap` DI wiring
 - [x] Mac Catalyst ISBN scanner — `net10.0-maccatalyst` TFM + hand-rolled AVFoundation `MacCatalystIsbnScanner` (EAN-13/EAN-8 via `AVCaptureMetadataOutput`) + `Info.plist` / `Entitlements.plist` with `NSCameraUsageDescription` and `com.apple.security.device.camera`; supports built-in, external, and Continuity cameras, degrades to manual entry on camera-less Macs
 - [x] Virtual shelf: drag/drop reorder (`ListView` `CanReorderItems`) + physical-dimension spine widths + `ShelvesController` (load-or-create default shelf, batch-replace placements)
-- [x] Production OAuth wiring — `ExternalTokenValidatorFactory` (Google via `GoogleJsonWebSignature`, Apple via OIDC discovery + JWKS), `OAuthConfig` for client IDs, configurable via user secrets / env vars; implicit flow wired end-to-end (PKCE upgrade tracked in issue #5)
+- [x] Production OAuth wiring — `ExternalTokenValidatorFactory` (Google via `GoogleJsonWebSignature`, Apple via OIDC discovery + JWKS), `OAuthConfig` for client IDs, configurable via user secrets / env vars; PKCE S256 authorization code flow implemented end-to-end (`PkceHelper` + `ExchangeCodeAsync` / `POST /api/auth/exchange` — replaces the deprecated implicit grant)
 - [x] Trim-safe WASM — `AppJsonContext` source-generated `JsonSerializerContext` + all `ApiClient` call-sites use `JsonTypeInfo<T>` overloads; zero IL2026 warnings on Release WASM build
 - [x] Read record tracking — `ReadRecord` entity (start/finish dates) linked to `UserBook`; `IsOwned` flag added to `UserBook`; all schema changes squashed into `InitialCreate` (later migrations are no-ops)
 - [x] Bulk import — `POST /api/import` accepts up to 500 ISBNs, fetches/refreshes OpenLibrary metadata, adds books to the user's library in one request; `BulkImportService` + `ImportController` + `ImportPage` in the client
@@ -278,3 +295,4 @@ See `docs/er-diagram.md` for the data model. Plan progress:
 - [x] Dev auth bypass — `DevAuthController` (`#if DEBUG` + `IsDevelopment()` double-guard) issues real JWTs for named personas without OAuth; `DevLoginPage` in the client
 - [x] Mock data seeder — `MockDataSeeder` (`#if DEBUG`) creates 10 realistic member accounts and populates their libraries via OpenLibrary Search API; ISBN results cached to `seed-data/mock-isbn-cache.json` so subsequent reseeds skip the network; popular/niche book distribution creates realistic multi-user overlap
 - [x] Discovery APIs — `GET /api/trending` (Open Library daily/weekly, 1 h cache, no key required); `GET /api/bestseller/{list}` (NYT Books API, 24 h cache, requires `NytBooks:ApiKey`); `GET /api/bestseller` returns available list names. `NytBooksService` + `OpenLibraryClient.GetTrendingAsync`. New shared DTOs: `BestsellerListDto`, `BestsellerEntryDto`, `TrendingResultDto`, `TrendingWorkDto`.
+- [x] Back-cover photo capture — `IBackCoverCamera` abstraction + `AndroidBackCoverCamera` (launches `CameraWithRulersActivity` with `RulerOverlayView` scale overlay) on Android; `NullBackCoverCamera` fallback on WASM/Mac Catalyst; `BackCoverPhotoPage` navigated to from BookDetail; photos stay on-device (no API upload).

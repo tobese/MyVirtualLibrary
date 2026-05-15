@@ -157,3 +157,10 @@ public record ImportSummary(
 public record BulkImportResponse(
     List<ImportRowResult> Results,
     ImportSummary Summary);
+
+/// <summary>
+/// Response from POST /api/books/{id}/refresh.
+/// <see cref="DataRefreshed"/> is true when OpenLibrary reported a newer
+/// last_modified timestamp and the local edition/work/author records were updated.
+/// </summary>
+public record RefreshBookResponse(UserBookDto Book, bool DataRefreshed);

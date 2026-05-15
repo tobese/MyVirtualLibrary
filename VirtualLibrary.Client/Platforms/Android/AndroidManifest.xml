@@ -7,7 +7,11 @@
      tracked in issue #2, so that enabling the scanner later is a code-only
      change. The camera feature is marked android:required="false" because
      manual ISBN entry works on devices without a rear camera. -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          xmlns:tools="http://schemas.android.com/tools">
+    <!-- AppCompatActivity (via Uno's BaseActivity) needs an AppCompat-derived theme. -->
+    <application android:theme="@style/AppTheme" tools:node="merge" />
+
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.FLASHLIGHT" />
 

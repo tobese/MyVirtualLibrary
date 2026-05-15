@@ -35,6 +35,18 @@
     </UnoFeatures>
   </PropertyGroup>
 
+  <!-- Debug-only Android build speed optimisations.
+       - x86_64 only: matches the emulator ABI, skips arm64-v8a/armeabi-v7a codegen.
+       - AOT disabled: shaves the biggest chunk off _CompileResources / linking time.
+       - No per-ABI packages: keeps the output to a single APK. -->
+  <PropertyGroup Condition="$(TargetFramework.Contains('android')) and '$(Configuration)' == 'Debug'">
+    <AndroidSupportedAbis>x86_64</AndroidSupportedAbis>
+    <RunAOTCompilation>false</RunAOTCompilation>
+    <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
+    <AndroidCreatePackagePerAbi>false</AndroidCreatePackagePerAbi>
+    <AndroidUseAapt2>true</AndroidUseAapt2>
+  </PropertyGroup>
+
   <!-- Enable the live barcode scanner on Android. -->
   <PropertyGroup Condition="$(TargetFramework.Contains('android'))">
     <DefineConstants>$(DefineConstants);USE_PLUGIN_SCANNER_UNO</DefineConstants>
@@ -44,6 +56,13 @@
          Android workload picks up the overridden values for its implicit refs. -->
     <AndroidXActivityVersion>1.12.2.1</AndroidXActivityVersion>
     <AndroidXAppCompatVersion>1.7.1.2</AndroidXAppCompatVersion>
+    <!-- androidx.lifecycle.runtime (pulled in by Plugin.Scanner.Android) requires
+         minSdk 23. API 23 (Android 6.0, 2015) is a safe baseline. -->
+    <SupportedOSPlatformVersion>23</SupportedOSPlatformVersion>
+    <!-- MLKit AAR files declare duplicate package namespaces which the manifest
+         merger flags as warnings. Prevent those warnings from being promoted to
+         hard build errors — they are harmless at runtime. -->
+    <AndroidManifestMergerErrorOnWarning>false</AndroidManifestMergerErrorOnWarning>
   </PropertyGroup>
 
   <ItemGroup>

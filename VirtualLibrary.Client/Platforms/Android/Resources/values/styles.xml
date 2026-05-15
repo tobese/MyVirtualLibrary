@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<resources>
+  <!-- Base application theme: Material DayNight with no action bar.
+       AppCompatActivity (the base of Uno's ApplicationActivity) requires
+       a Theme.AppCompat-descendant — Theme.MaterialComponents satisfies that. -->
+  <style name="AppTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+  </style>
+</resources>

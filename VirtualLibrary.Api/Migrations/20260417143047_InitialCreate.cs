@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -68,7 +68,8 @@ namespace VirtualLibrary.Api.Migrations
                     Name = table.Column<string>(type: "text", nullable: false),
                     BirthDate = table.Column<string>(type: "text", nullable: true),
                     Bio = table.Column<string>(type: "text", nullable: true),
-                    PhotoUrl = table.Column<string>(type: "text", nullable: true)
+                    PhotoUrl = table.Column<string>(type: "text", nullable: true),
+                    OlLastModified = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -85,7 +86,8 @@ namespace VirtualLibrary.Api.Migrations
                     Description = table.Column<string>(type: "text", nullable: true),
                     FirstPublishYear = table.Column<int>(type: "integer", nullable: true),
                     Subjects = table.Column<string>(type: "jsonb", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    OlLastModified = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -235,6 +237,7 @@ namespace VirtualLibrary.Api.Migrations
                     PhysicalDimensions = table.Column<string>(type: "text", nullable: true),
                     Weight = table.Column<string>(type: "text", nullable: true),
                     CachedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    OlLastModified = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     WorkId = table.Column<Guid>(type: "uuid", nullable: true)
                 },
                 constraints: table =>
@@ -303,6 +306,7 @@ namespace VirtualLibrary.Api.Migrations
                     UserId = table.Column<string>(type: "text", nullable: false),
                     EditionId = table.Column<Guid>(type: "uuid", nullable: false),
                     Status = table.Column<string>(type: "text", nullable: false),
+                    IsOwned = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
                     DateAdded = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Rating = table.Column<int>(type: "integer", nullable: true),
                     Notes = table.Column<string>(type: "text", nullable: true)
@@ -322,6 +326,26 @@ namespace VirtualLibrary.Api.Migrations
                         principalTable: "Editions",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ReadRecords",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserBookId = table.Column<Guid>(type: "uuid", nullable: false),
+                    DateRead = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Notes = table.Column<string>(type: "text", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ReadRecords", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ReadRecords_UserBooks_UserBookId",
+                        column: x => x.UserBookId,
+                        principalTable: "UserBooks",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -352,160 +376,48 @@ namespace VirtualLibrary.Api.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
-            migrationBuilder.CreateIndex(
-                name: "IX_AspNetRoleClaims_RoleId",
-                table: "AspNetRoleClaims",
-                column: "RoleId");
-
-            migrationBuilder.CreateIndex(
-                name: "RoleNameIndex",
-                table: "AspNetRoles",
-                column: "NormalizedName",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_AspNetUserClaims_UserId",
-                table: "AspNetUserClaims",
-                column: "UserId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_AspNetUserLogins_UserId",
-                table: "AspNetUserLogins",
-                column: "UserId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_AspNetUserRoles_RoleId",
-                table: "AspNetUserRoles",
-                column: "RoleId");
-
-            migrationBuilder.CreateIndex(
-                name: "EmailIndex",
-                table: "AspNetUsers",
-                column: "NormalizedEmail");
-
-            migrationBuilder.CreateIndex(
-                name: "UserNameIndex",
-                table: "AspNetUsers",
-                column: "NormalizedUserName",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Authors_OpenLibraryId",
-                table: "Authors",
-                column: "OpenLibraryId",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Covers_EditionId",
-                table: "Covers",
-                column: "EditionId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_EditionAuthors_AuthorId",
-                table: "EditionAuthors",
-                column: "AuthorId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Editions_Isbn10",
-                table: "Editions",
-                column: "Isbn10");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Editions_Isbn13",
-                table: "Editions",
-                column: "Isbn13");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Editions_OpenLibraryId",
-                table: "Editions",
-                column: "OpenLibraryId",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Editions_WorkId",
-                table: "Editions",
-                column: "WorkId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ShelfPlacements_ShelfId",
-                table: "ShelfPlacements",
-                column: "ShelfId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ShelfPlacements_UserBookId",
-                table: "ShelfPlacements",
-                column: "UserBookId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Shelves_OwnerUserId",
-                table: "Shelves",
-                column: "OwnerUserId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_UserBooks_EditionId",
-                table: "UserBooks",
-                column: "EditionId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_UserBooks_UserId_EditionId",
-                table: "UserBooks",
-                columns: new[] { "UserId", "EditionId" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Works_OpenLibraryId",
-                table: "Works",
-                column: "OpenLibraryId",
-                unique: true);
+            migrationBuilder.CreateIndex(name: "IX_AspNetRoleClaims_RoleId",    table: "AspNetRoleClaims",  column: "RoleId");
+            migrationBuilder.CreateIndex(name: "RoleNameIndex",                 table: "AspNetRoles",         column: "NormalizedName", unique: true);
+            migrationBuilder.CreateIndex(name: "IX_AspNetUserClaims_UserId",    table: "AspNetUserClaims",    column: "UserId");
+            migrationBuilder.CreateIndex(name: "IX_AspNetUserLogins_UserId",    table: "AspNetUserLogins",    column: "UserId");
+            migrationBuilder.CreateIndex(name: "IX_AspNetUserRoles_RoleId",     table: "AspNetUserRoles",     column: "RoleId");
+            migrationBuilder.CreateIndex(name: "EmailIndex",                    table: "AspNetUsers",         column: "NormalizedEmail");
+            migrationBuilder.CreateIndex(name: "UserNameIndex",                 table: "AspNetUsers",         column: "NormalizedUserName", unique: true);
+            migrationBuilder.CreateIndex(name: "IX_Authors_OpenLibraryId",      table: "Authors",             column: "OpenLibraryId", unique: true);
+            migrationBuilder.CreateIndex(name: "IX_Covers_EditionId",           table: "Covers",              column: "EditionId");
+            migrationBuilder.CreateIndex(name: "IX_EditionAuthors_AuthorId",    table: "EditionAuthors",      column: "AuthorId");
+            migrationBuilder.CreateIndex(name: "IX_Editions_Isbn10",            table: "Editions",            column: "Isbn10");
+            migrationBuilder.CreateIndex(name: "IX_Editions_Isbn13",            table: "Editions",            column: "Isbn13");
+            migrationBuilder.CreateIndex(name: "IX_Editions_OpenLibraryId",     table: "Editions",            column: "OpenLibraryId", unique: true);
+            migrationBuilder.CreateIndex(name: "IX_Editions_WorkId",            table: "Editions",            column: "WorkId");
+            migrationBuilder.CreateIndex(name: "IX_ReadRecords_UserBookId",     table: "ReadRecords",         column: "UserBookId");
+            migrationBuilder.CreateIndex(name: "IX_ShelfPlacements_ShelfId",    table: "ShelfPlacements",     column: "ShelfId");
+            migrationBuilder.CreateIndex(name: "IX_ShelfPlacements_UserBookId", table: "ShelfPlacements",     column: "UserBookId");
+            migrationBuilder.CreateIndex(name: "IX_Shelves_OwnerUserId",        table: "Shelves",             column: "OwnerUserId");
+            migrationBuilder.CreateIndex(name: "IX_UserBooks_EditionId",        table: "UserBooks",           column: "EditionId");
+            migrationBuilder.CreateIndex(name: "IX_UserBooks_UserId_EditionId", table: "UserBooks",           columns: new[] { "UserId", "EditionId" }, unique: true);
+            migrationBuilder.CreateIndex(name: "IX_Works_OpenLibraryId",        table: "Works",               column: "OpenLibraryId", unique: true);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "AspNetRoleClaims");
-
-            migrationBuilder.DropTable(
-                name: "AspNetUserClaims");
-
-            migrationBuilder.DropTable(
-                name: "AspNetUserLogins");
-
-            migrationBuilder.DropTable(
-                name: "AspNetUserRoles");
-
-            migrationBuilder.DropTable(
-                name: "AspNetUserTokens");
-
-            migrationBuilder.DropTable(
-                name: "Covers");
-
-            migrationBuilder.DropTable(
-                name: "EditionAuthors");
-
-            migrationBuilder.DropTable(
-                name: "ShelfPlacements");
-
-            migrationBuilder.DropTable(
-                name: "AspNetRoles");
-
-            migrationBuilder.DropTable(
-                name: "Authors");
-
-            migrationBuilder.DropTable(
-                name: "Shelves");
-
-            migrationBuilder.DropTable(
-                name: "UserBooks");
-
-            migrationBuilder.DropTable(
-                name: "AspNetUsers");
-
-            migrationBuilder.DropTable(
-                name: "Editions");
-
-            migrationBuilder.DropTable(
-                name: "Works");
+            migrationBuilder.DropTable(name: "AspNetRoleClaims");
+            migrationBuilder.DropTable(name: "AspNetUserClaims");
+            migrationBuilder.DropTable(name: "AspNetUserLogins");
+            migrationBuilder.DropTable(name: "AspNetUserRoles");
+            migrationBuilder.DropTable(name: "AspNetUserTokens");
+            migrationBuilder.DropTable(name: "Covers");
+            migrationBuilder.DropTable(name: "EditionAuthors");
+            migrationBuilder.DropTable(name: "ReadRecords");
+            migrationBuilder.DropTable(name: "ShelfPlacements");
+            migrationBuilder.DropTable(name: "AspNetRoles");
+            migrationBuilder.DropTable(name: "Authors");
+            migrationBuilder.DropTable(name: "Shelves");
+            migrationBuilder.DropTable(name: "UserBooks");
+            migrationBuilder.DropTable(name: "AspNetUsers");
+            migrationBuilder.DropTable(name: "Editions");
+            migrationBuilder.DropTable(name: "Works");
         }
     }
 }

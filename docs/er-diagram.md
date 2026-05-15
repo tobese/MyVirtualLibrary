@@ -38,6 +38,7 @@ erDiagram
         int      FirstPublishYear
         jsonb    Subjects
         DateTime CreatedAt
+        DateTime OlLastModified
     }
 
     Edition {
@@ -53,16 +54,18 @@ erDiagram
         string   PhysicalDimensions
         string   Weight
         DateTime CachedAt
+        DateTime OlLastModified
         Guid     WorkId FK
     }
 
     Author {
-        Guid   Id PK
-        string OpenLibraryId UK
-        string Name
-        string BirthDate
-        string Bio
-        string PhotoUrl
+        Guid     Id PK
+        string   OpenLibraryId UK
+        string   Name
+        string   BirthDate
+        string   Bio
+        string   PhotoUrl
+        DateTime OlLastModified
     }
 
     EditionAuthor {

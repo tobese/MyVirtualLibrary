@@ -27,6 +27,14 @@
                 <TextBlock x:Name="IsbnText" Opacity="0.7" />
                 <TextBlock x:Name="DimensionsText" Opacity="0.7" />
 
+                <!-- Per-book actions -->
+                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                    <Button x:Name="RefreshOlButton" Content="Refresh from OpenLibrary"
+                            Click="OnRefreshFromOl" />
+                    <Button x:Name="PhotoBackCoverButton" Content="Photo Back Cover"
+                            Click="OnPhotoBackCover" />
+                </StackPanel>
+
                 <!-- Ownership (independent of reading state) -->
                 <TextBlock Text="Ownership" FontWeight="SemiBold" Margin="0,12,0,0" />
                 <CheckBox x:Name="OwnedCheck" Content="I own this book" />
