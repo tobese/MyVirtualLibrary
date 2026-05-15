@@ -1,4 +1,4 @@
-.PHONY: sony android wasm api all clean
+.PHONY: sony android wasm api all clean seed
 
 # ── Android / device ─────────────────────────────────────────────────────────
 #
@@ -39,3 +39,8 @@ all: android wasm
 clean:
 	dotnet clean VirtualLibrary.Client
 	dotnet clean VirtualLibrary.Api
+
+# ── Discovery seeding ─────────────────────────────────────────────────────────
+
+seed:
+	python3 scripts/seed_discovery.py
