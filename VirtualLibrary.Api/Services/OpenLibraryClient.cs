@@ -150,6 +150,11 @@ public class OpenLibraryClient : IOpenLibraryClient
 
     // ── Trending ──────────────────────────────────────────────────────────────
 
+    // OL subjects used as a fallback when the /trending endpoint is unavailable.
+    // Two subject groups give a balanced fiction / non-fiction mix.
+    private static readonly string[] TrendingFallbackSubjects =
+        ["fiction", "nonfiction", "mystery", "science", "biography"];
+
     public async Task<TrendingResultDto> GetTrendingAsync(string period, CancellationToken ct = default)
     {
         period = period is "daily" or "weekly" ? period : "weekly";
@@ -157,15 +162,63 @@ public class OpenLibraryClient : IOpenLibraryClient
         if (_cache.TryGetValue<TrendingResultDto>(cacheKey, out var cached) && cached != null)
             return cached;
 
+        // Try the native trending endpoint first; fall back to search if it returns non-JSON.
         var json = await GetJsonAsync($"{BaseUrl}/trending/{period}.json", ct);
-        if (json == null) return new TrendingResultDto(period, new());
+        List<JsonElement> rawWorks;
 
-        var rawWorks = json.RootElement.TryGetProperty("works", out var worksEl)
-                       && worksEl.ValueKind == JsonValueKind.Array
-            ? worksEl.EnumerateArray().Take(20).ToList()
-            : new List<JsonElement>();
+        if (json != null && json.RootElement.TryGetProperty("works", out var worksEl)
+                         && worksEl.ValueKind == JsonValueKind.Array)
+        {
+            rawWorks = worksEl.EnumerateArray().Take(20).ToList();
+        }
+        else
+        {
+            // Fallback: pull recently-published works via the search API, rotating
+            // through subjects so we get a varied mix across fiction and non-fiction.
+            _log.LogInformation(
+                "OL trending/{Period} unavailable — falling back to search API", period);
+            rawWorks = await FetchTrendingViaSearchAsync(period, ct);
+        }
 
-        // Batch-match against local DB in a single query
+        return await BuildTrendingResultAsync(period, rawWorks, ct);
+    }
+
+    private async Task<List<JsonElement>> FetchTrendingViaSearchAsync(string period, CancellationToken ct)
+    {
+        // "daily" → 1 subject (quick, ~10 works); "weekly" → all subjects (~50 total, deduplicated to 20).
+        var subjects = period == "daily"
+            ? TrendingFallbackSubjects.Take(2).ToArray()
+            : TrendingFallbackSubjects;
+
+        var seen     = new HashSet<string>(StringComparer.Ordinal);
+        var elements = new List<JsonElement>();
+
+        foreach (var subject in subjects)
+        {
+            if (elements.Count >= 20) break;
+            var url = $"{BaseUrl}/search.json?subject={Uri.EscapeDataString(subject)}" +
+                      $"&sort=new&fields=key,title,author_name,cover_i&limit=10";
+            var json = await GetJsonAsync(url, ct);
+            if (json == null) continue;
+            if (!json.RootElement.TryGetProperty("docs", out var docs) ||
+                docs.ValueKind != JsonValueKind.Array)
+                continue;
+
+            foreach (var doc in docs.EnumerateArray())
+            {
+                if (elements.Count >= 20) break;
+                var key = doc.TryGetProperty("key", out var k) ? k.GetString() : null;
+                if (key != null && seen.Add(key))
+                    elements.Add(doc);
+            }
+        }
+
+        return elements;
+    }
+
+    private async Task<TrendingResultDto> BuildTrendingResultAsync(
+        string period, List<JsonElement> rawWorks, CancellationToken ct)
+    {
         var olIds = rawWorks
             .Select(w => w.TryGetProperty("key", out var k) ? Last(k.GetString()) : null)
             .OfType<string>()
@@ -185,22 +238,22 @@ public class OpenLibraryClient : IOpenLibraryClient
             var key = w.TryGetProperty("key", out var k) ? k.GetString() : null;
             if (key == null) continue;
 
-            var olId = Last(key);
-            var title = w.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
+            var olId    = Last(key);
+            var title   = w.TryGetProperty("title",       out var t)  ? t.GetString()  ?? "" : "";
             var authors = w.TryGetProperty("author_name", out var an) && an.ValueKind == JsonValueKind.Array
-                ? an.EnumerateArray().Select(a => a.GetString() ?? "").Where(s => !string.IsNullOrEmpty(s)).ToList()
+                ? an.EnumerateArray().Select(a => a.GetString() ?? "").Where(s => s.Length > 0).ToList()
                 : new List<string>();
             string? coverUrl = null;
             if (w.TryGetProperty("cover_i", out var ci) && ci.ValueKind == JsonValueKind.Number)
                 coverUrl = $"{CoverBase}/b/id/{ci.GetInt64()}-M.jpg";
 
             Guid? localId = olId != null && localByOlId.TryGetValue(olId, out var lwId) ? lwId : null;
-
-            works.Add(new TrendingWorkDto(OlKey: key, Title: title, Authors: authors, CoverUrl: coverUrl, LocalWorkId: localId));
+            works.Add(new TrendingWorkDto(OlKey: key, Title: title, Authors: authors,
+                                          CoverUrl: coverUrl, LocalWorkId: localId));
         }
 
         var result = new TrendingResultDto(period, works);
-        _cache.Set(cacheKey, result, TimeSpan.FromHours(1));
+        _cache.Set($"ol:trending:{period}", result, TimeSpan.FromHours(1));
         return result;
     }
 
@@ -454,6 +507,12 @@ public class OpenLibraryClient : IOpenLibraryClient
             if (!resp.IsSuccessStatusCode)
             {
                 _log.LogWarning("OpenLibrary GET {Url} → {Status}", url, resp.StatusCode);
+                return null;
+            }
+            var ct2 = resp.Content.Headers.ContentType?.MediaType ?? "";
+            if (!ct2.Contains("json", StringComparison.OrdinalIgnoreCase))
+            {
+                _log.LogWarning("OpenLibrary GET {Url} returned non-JSON content-type: {CT}", url, ct2);
                 return null;
             }
             var json = await resp.Content.ReadAsStringAsync(ct);
