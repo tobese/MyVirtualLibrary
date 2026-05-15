@@ -172,21 +172,33 @@ All endpoints return JSON. All `/api/*` routes require `Authorization: Bearer <J
 - `POST /api/import`                  — bulk-import up to 500 ISBNs; fetches/refreshes metadata from OpenLibrary and adds books to the calling user's library. Body: `{ "isbns": ["…"], "defaultStatus": 0|1|2, "defaultIsOwned": true|false }`
 - `GET  /api/stats`                   — library-wide statistics (Admin / SuperAdmin only): catalogue counts, user-book aggregates, top authors, top subjects, active member count
 - `POST /api/auth/dev-login`          — **Debug builds only**; body `{ "persona": "<name>" }`. Issues a real JWT for a named test persona without credentials. Personas: `superadmin`, `admin`, `member`, `pending`, `suspended`. Returns 404 in non-Development environments even if compiled as Debug.
-- `GET  /api/bestseller`              — list of all available NYT bestseller list names (encoded slugs, e.g. `hardcover-fiction`). Requires `NytBooks:ApiKey`.
+- `GET  /api/bestseller`              — list of available NYT bestseller list names (encoded slugs). Requires `NytBooks:ApiKey`; falls back to a curated hardcoded list if the discovery endpoint is unavailable.
 - `GET  /api/bestseller/{listName}`   — current NYT bestseller list for `listName`. Returns `BestsellerListDto` (list name, published date, ranked books with ISBN-13, cover URL, weeks on list). Cached 24 h.
-- `GET  /api/trending[?period=weekly]` — trending works from Open Library. `period` is `daily` or `weekly` (default `weekly`). Returns `TrendingResultDto` with up to 20 works; `localWorkId` is populated if the work is already in your library. Cached 1 h. No API key required.
+- `GET  /api/trending[?period=weekly]` — trending works from Open Library. `period` is `daily` or `weekly` (default `weekly`). Returns `TrendingResultDto` with up to 20 works; `localWorkId` is populated if the work is already in your library. Falls back to an OL subject search (`sort=new`) if the native trending endpoint is unavailable. Cached 1 h. No API key required.
+- `GET  /api/catalog`                 — catalog-wide summary (all active users): edition/work/author counts, editions with covers, top-10 authors by edition count, top-10 subjects, language breakdown, 10 most recently cached editions.
+- `GET  /api/catalog/authors[?page=1&pageSize=20&q=]` — paginated author list ordered by edition count desc. Optional name search via `?q=`.
+- `GET  /api/catalog/books[?page=1&pageSize=20&q=&lang=]` — paginated edition list ordered by most recently cached. Optional title/ISBN search (`?q=`) and language filter (`?lang=eng`).
 
 Enum reference: `BookStatus 0=WantToRead, 1=Read` (ownership is a separate `isOwned` bool, not an enum value); `UserRole 0=User, 1=Admin, 2=SuperAdmin`; `UserStatus 0=PendingApproval, 1=Active, 2=Rejected, 3=Suspended`.
 
 ## Discovery API keys
 
 ### NYT Books API
-Register a free key at <https://developer.nytimes.com/> (instant approval, 1000 req/day).
+Register a free key at <https://developer.nytimes.com/> (instant approval, 1000 req/day). Enable the **Books API** for the key before using it.
+
+**Docker Compose (recommended):** add the key to `.env` in the repo root (already gitignored):
+```
+NytBooks__ApiKey=<your-key>
+```
+`docker-compose.yml` reads it via `${NytBooks__ApiKey:-}` and injects it into the container automatically.
+
+**Native run:** pass as an environment variable or use user-secrets:
 ```bash
 cd VirtualLibrary.Api
 dotnet user-secrets set "NytBooks:ApiKey" "<your-key>"
 ```
-Or set `NytBooks__ApiKey` as an environment variable in production. Without a key the `/api/bestseller` endpoints return 404; `/api/trending` always works without one.
+
+Without a key the `/api/bestseller` endpoints return 404; `/api/trending` always works without one. The NYT `/lists/names.json` discovery endpoint is deprecated on free-tier keys — the service automatically falls back to a curated hardcoded list of 7 major list slugs.
 
 ## OAuth setup
 External sign-in (Google / Apple) requires credentials from each provider's developer console **and** public client IDs baked into the client app. No secrets are committed to the repo.
@@ -295,4 +307,7 @@ See `docs/er-diagram.md` for the data model. Plan progress:
 - [x] Dev auth bypass — `DevAuthController` (`#if DEBUG` + `IsDevelopment()` double-guard) issues real JWTs for named personas without OAuth; `DevLoginPage` in the client
 - [x] Mock data seeder — `MockDataSeeder` (`#if DEBUG`) creates 10 realistic member accounts and populates their libraries via OpenLibrary Search API; ISBN results cached to `seed-data/mock-isbn-cache.json` so subsequent reseeds skip the network; popular/niche book distribution creates realistic multi-user overlap
 - [x] Discovery APIs — `GET /api/trending` (Open Library daily/weekly, 1 h cache, no key required); `GET /api/bestseller/{list}` (NYT Books API, 24 h cache, requires `NytBooks:ApiKey`); `GET /api/bestseller` returns available list names. `NytBooksService` + `OpenLibraryClient.GetTrendingAsync`. New shared DTOs: `BestsellerListDto`, `BestsellerEntryDto`, `TrendingResultDto`, `TrendingWorkDto`.
+- [x] Discovery API resilience — OL `/trending/{period}.json` returns HTML on free-tier requests; `GetJsonAsync` now checks `Content-Type` and `GetTrendingAsync` falls back to subject-based OL search (`sort=new`, rotating subjects). NYT `/lists/names.json` is deprecated on free-tier keys; `NytBooksService` falls back to a hardcoded list of 7 confirmed slugs.
+- [x] Catalog browse API — `GET /api/catalog` (summary: counts, top authors/subjects, language breakdown, recently added), `GET /api/catalog/authors` (paginated, sortable, searchable), `GET /api/catalog/books` (paginated with title/ISBN search and language filter). All accessible to any active user. DTOs in `VirtualLibrary.Shared/CatalogDtos.cs`.
+- [x] Discovery seeding script — `scripts/seed_discovery.py` (stdlib only, no third-party deps) authenticates via dev-login, fetches all NYT bestseller lists + OL trending (both periods), resolves OL work keys to ISBN-13s via the editions endpoint, deduplicates, and bulk-imports via `POST /api/import`. Idempotent. `make seed` runs it. NYT API key read from `.env` via Docker Compose.
 - [x] Back-cover photo capture — `IBackCoverCamera` abstraction + `AndroidBackCoverCamera` (launches `CameraWithRulersActivity` with `RulerOverlayView` scale overlay) on Android; `NullBackCoverCamera` fallback on WASM/Mac Catalyst; `BackCoverPhotoPage` navigated to from BookDetail; photos stay on-device (no API upload).
